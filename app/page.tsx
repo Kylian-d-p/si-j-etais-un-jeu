@@ -2,17 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { questions } from "@/lib/questions";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { createGame } from "./create-game";
 
 export default function Home() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(-1);
-
-  const questions: ({ label: string; responseType: "free" } | { label: string; responseType: "multipleChoice"; choices: string[] })[] = [
-    {
-      label: "Quel est ton film préféré ?",
-      responseType: "free",
-    },
-  ];
+  const [loading, setLoading] = useState(false);
 
   const responses: string[] = [];
 
@@ -46,14 +43,25 @@ export default function Home() {
               </Button>
             )}
             <Button
-              onClick={() => {
+              onClick={async () => {
                 if (activeQuestionIndex < questions.length - 1) {
                   setActiveQuestionIndex(activeQuestionIndex + 1);
                 } else {
-                  // Finish
+                  setLoading(true);
+                  const res = await createGame({ responses });
+                  setLoading(false);
+
+                  if (!res.data) {
+                    console.error("No data returned from createGame");
+                    return;
+                  }
+
+                  console.log(res.data);
                 }
               }}
+              disabled={loading}
             >
+              {loading ? <Loader2 className="animate-spin mr-2" /> : null}
               {activeQuestionIndex < questions.length - 1 ? "Suivant" : "Terminer"}
             </Button>
           </div>

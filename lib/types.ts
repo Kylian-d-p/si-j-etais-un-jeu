@@ -1,0 +1,41 @@
+import z from "zod";
+
+export const types = {
+  questions: z.array(
+    z.discriminatedUnion("responseType", [
+      z.object({
+        label: z.string(),
+        responseType: z.literal("free"),
+      }),
+      z.object({
+        label: z.string(),
+        responseType: z.literal("multipleChoice"),
+        choices: z.array(z.string()),
+      }),
+    ])
+  ),
+  prompts: z.object({
+    mainCharacterPrompt: z.string(),
+    backgroundPrompt: z.string(),
+    weapon: z.discriminatedUnion("type", [
+      z.object({
+        type: z.literal("melee"),
+        prompt: z.string(),
+      }),
+      z.object({
+        type: z.literal("ranged"),
+        prompt: z.string(),
+        projectilePrompt: z.string(),
+      }),
+    ]),
+    monstersPrompt: z.string(),
+    bossPrompt: z.string(),
+    groundPrompt: z.string(),
+  }),
+};
+
+export const formSchemas = {
+  createGame: z.object({
+    responses: z.array(z.string()),
+  }),
+};
