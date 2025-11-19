@@ -1,873 +1,755 @@
 "use client";
 
-import { Boss } from "@/components/game/Boss";
-import { Camera } from "@/components/game/Camera";
-import { Chest } from "@/components/game/Chest";
-import { DamageNumber } from "@/components/game/DamageNumber";
-import { Enemy } from "@/components/game/Enemy";
-import { ParticleSystem } from "@/components/game/ParticleSystem";
-import { Pet } from "@/components/game/Pet";
-import { Platform } from "@/components/game/Platform";
-import { Player } from "@/components/game/Player";
-import { Star } from "@/components/game/Star";
-import { GameState } from "@/components/game/types";
 import { useEffect, useRef, useState } from "react";
 
-export default function Game() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<GameState>(GameState.WAVE);
-  const [playerHealth, setPlayerHealth] = useState(100);
-  const [healthText, setHealthText] = useState("100/100");
-  const [waveInfo, setWaveInfo] = useState("Vague: 1");
-  const [scoreInfo, setScoreInfo] = useState("Score: 0");
-  const [showGameOver, setShowGameOver] = useState(false);
-  const [showVictory, setShowVictory] = useState(false);
-  const [gameOverMessage, setGameOverMessage] = useState("");
-  const [victoryMessage, setVictoryMessage] = useState("");
+interface Entity {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  velocityX: number;
+  velocityY: number;
+  health: number;
+  maxHealth: number;
+  isOnGround: boolean;
+}
 
+interface Monster extends Entity {
+  direction: number;
+  attackCooldown: number;
+}
+
+interface Projectile {
+  x: number;
+  y: number;
+  velocityX: number;
+  width: number;
+  height: number;
+}
+
+interface Pet {
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+}
+
+export default function Game(props: {
+  game: {
+    mainCharacterImageUrl: string;
+    backgroundImageUrl: string;
+    weaponImageUrl: string;
+    projectileImageUrl: string | null;
+    monstersImageUrl: string;
+    bossImageUrl: string;
+    groundImageUrl: string;
+    petImageUrl: string;
+  };
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [gameState, setGameState] = useState<"playing" | "wave-complete" | "pet-intro" | "boss-intro" | "victory" | "game-over">("playing");
+  const [currentWave, setCurrentWave] = useState(1);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  const gameStateRef = useRef({
+    player: {
+      x: 100,
+      y: 300,
+      width: 65,
+      height: 75,
+      velocityX: 0,
+      velocityY: 0,
+      health: 100,
+      maxHealth: 100,
+      isOnGround: false,
+      isCrouching: false,
+      attackCooldown: 0,
+      direction: 1, // 1 = droite, -1 = gauche
+    },
+    monsters: [] as Monster[],
+    boss: null as (Entity & { jumpCooldown: number }) | null,
+    projectiles: [] as Projectile[],
+    pet: null as Pet | null,
+    keys: {} as Record<string, boolean>,
+    wave: 1,
+    state: "playing" as typeof gameState,
+    bossIntroProgress: 0,
+  });
+
+  const imagesRef = useRef({
+    player: null as HTMLImageElement | null,
+    background: null as HTMLImageElement | null,
+    weapon: null as HTMLImageElement | null,
+    projectile: null as HTMLImageElement | null,
+    monster: null as HTMLImageElement | null,
+    boss: null as HTMLImageElement | null,
+    ground: null as HTMLImageElement | null,
+    pet: null as HTMLImageElement | null,
+  });
+
+  // Charger les images
   useEffect(() => {
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    };
+
+    Promise.all([
+      loadImage(props.game.mainCharacterImageUrl),
+      loadImage(props.game.backgroundImageUrl),
+      loadImage(props.game.weaponImageUrl),
+      props.game.projectileImageUrl ? loadImage(props.game.projectileImageUrl) : Promise.resolve(null),
+      loadImage(props.game.monstersImageUrl),
+      loadImage(props.game.bossImageUrl),
+      loadImage(props.game.groundImageUrl),
+      loadImage(props.game.petImageUrl),
+    ])
+      .then(([player, background, weapon, projectile, monster, boss, ground, pet]) => {
+        imagesRef.current = {
+          player,
+          background,
+          weapon,
+          projectile,
+          monster,
+          boss,
+          ground,
+          pet,
+        };
+        setImagesLoaded(true);
+      })
+      .catch((error) => {
+        console.error("Erreur lors du chargement des images:", error);
+      });
+  }, [props.game]);
+
+  // Gestion des touches
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      gameStateRef.current.keys[e.key.toLowerCase()] = true;
+
+      // Cheat code: N pour passer à la vague suivante
+      if (e.key.toLowerCase() === "n" && gameStateRef.current.state === "playing") {
+        if (gameStateRef.current.wave < 3) {
+          // Passer à la vague suivante
+          gameStateRef.current.monsters = [];
+          gameStateRef.current.projectiles = [];
+          gameStateRef.current.wave++;
+          gameStateRef.current.state = "wave-complete";
+          setGameState("wave-complete");
+          setCurrentWave(gameStateRef.current.wave);
+        } else if (!gameStateRef.current.boss) {
+          // Déclencher l'intro du pet et du boss
+          gameStateRef.current.monsters = [];
+          gameStateRef.current.projectiles = [];
+          gameStateRef.current.pet = {
+            x: gameStateRef.current.player.x - 80,
+            y: gameStateRef.current.player.y,
+            targetX: gameStateRef.current.player.x - 80,
+            targetY: gameStateRef.current.player.y,
+          };
+          gameStateRef.current.state = "pet-intro";
+          setGameState("pet-intro");
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      gameStateRef.current.keys[e.key.toLowerCase()] = false;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  // Initialiser les monstres pour une vague
+  const spawnWave = (waveNumber: number) => {
+    const monstersCount = 3 + waveNumber;
+    const monsters: Monster[] = [];
+
+    for (let i = 0; i < monstersCount; i++) {
+      monsters.push({
+        x: 400 + i * 150,
+        y: 300,
+        width: 60,
+        height: 70,
+        velocityX: 0,
+        velocityY: 0,
+        health: 30 + waveNumber * 10,
+        maxHealth: 30 + waveNumber * 10,
+        isOnGround: false,
+        direction: -1,
+        attackCooldown: 0,
+      });
+    }
+
+    gameStateRef.current.monsters = monsters;
+  };
+
+  // Initialiser le boss
+  const spawnBoss = () => {
+    gameStateRef.current.boss = {
+      x: 900,
+      y: 250,
+      width: 100,
+      height: 125,
+      velocityX: 0,
+      velocityY: 0,
+      health: 200,
+      maxHealth: 200,
+      isOnGround: false,
+      jumpCooldown: 0,
+    };
+  };
+
+  // Initialiser le jeu
+  useEffect(() => {
+    if (imagesLoaded) {
+      spawnWave(1);
+    }
+  }, [imagesLoaded]);
+
+  // Boucle de jeu
+  useEffect(() => {
+    if (!imagesLoaded) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Adapter le canvas à toute la largeur et hauteur de l'écran
-    const updateCanvasSize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
+    const CANVAS_WIDTH = 1000;
+    const CANVAS_HEIGHT = 600;
+    const GROUND_Y = 450;
+    const GRAVITY = 0.15;
+    const JUMP_FORCE = -8.5;
+    const MOVE_SPEED = 3;
+    const ATTACK_RANGE = 60;
 
-    // Initialisation du jeu
-    const player = new Player(100, canvas.height - 30 - 60); // 60 = hauteur approximative du joueur
-    let enemies: Enemy[] = [];
-    let boss: Boss | null = null;
-    let chest: Chest | null = null;
-    let pet: Pet | null = null;
-    let platforms: Platform[] = [];
-    let star: Star | null = null;
-    let currentWave = 1;
-    let score = 0;
-    let combo = 0;
-    let comboMultiplier = 1;
-    let comboTimer = 0;
-    let state = GameState.WAVE;
-    const particleSystem = new ParticleSystem();
-    const camera = new Camera();
-    const damageNumbers: DamageNumber[] = [];
-    let stateTransitionTimer = 0;
-    let fadeAlpha = 0;
+    let animationFrameId: number;
+    let lastTime = performance.now();
+    const targetFPS = 60;
+    const frameTime = 1000 / targetFPS;
 
-    // Charger l'image de fond
-    const backgroundImage = new Image();
-    let backgroundLoaded = false;
-    backgroundImage.onload = () => {
-      backgroundLoaded = true;
-    };
-    backgroundImage.onerror = () => {
-      console.warn("Impossible de charger decor.gif");
-      backgroundLoaded = false;
-    };
-    backgroundImage.src = "/assets/decor.gif";
-    const keys: { [key: string]: boolean } = {};
-    const easterEggSequence: string[] = [];
-    const petSequence: string[] = [];
-    let easterEggActive = false;
-    let mouseClick = false;
-    let isMouseDown = false;
-    let gameAnimationFrame = 0;
-
-    // Gestion des touches
-    const handleKeyDown = (e: KeyboardEvent) => {
-      keys[e.key] = true;
-      checkEasterEggs(e.key);
+    const checkCollision = (a: Entity, b: Entity): boolean => {
+      return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keys[e.key] = false;
-    };
+    const gameLoop = (currentTime: number) => {
+      const deltaTime = Math.min((currentTime - lastTime) / frameTime, 2);
+      lastTime = currentTime;
 
-    // Gestion du clic souris pour le tir
-    const handleMouseClick = () => {
-      mouseClick = true;
-      setTimeout(() => {
-        mouseClick = false;
-      }, 50);
-    };
+      const game = gameStateRef.current;
 
-    // Gestion du tir continu avec la souris
-    const handleMouseDown = () => {
-      isMouseDown = true;
-    };
-    const handleMouseUp = () => {
-      isMouseDown = false;
-    };
+      // Effacer le canvas
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    let petSequenceTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    const checkEasterEggs = (key: string) => {
-      // Konami Code
-      const konamiCode = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
-      easterEggSequence.push(key);
-      if (easterEggSequence.length > konamiCode.length) {
-        easterEggSequence.shift();
-      }
-      if (easterEggSequence.join(",") === konamiCode.join(",")) {
-        player.heal(50);
-        easterEggActive = true;
-        setTimeout(() => {
-          easterEggActive = false;
-        }, 3000);
+      // Dessiner le fond
+      if (imagesRef.current.background) {
+        ctx.drawImage(imagesRef.current.background, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       }
 
-      // PET easter egg
-      if (key.toLowerCase() === "p" || key.toLowerCase() === "e" || key.toLowerCase() === "t") {
-        petSequence.push(key.toLowerCase());
-        if (petSequence.length > 3) petSequence.shift();
-        if (petSequence.join("") === "pet") {
-          score += 1000;
-          easterEggActive = true;
-          setTimeout(() => {
-            easterEggActive = false;
-          }, 3000);
-        }
-        if (petSequenceTimeout) clearTimeout(petSequenceTimeout);
-        petSequenceTimeout = setTimeout(() => {
-          petSequence.length = 0;
-        }, 1000);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
-    canvas.addEventListener("click", handleMouseClick);
-    canvas.addEventListener("mousedown", handleMouseDown);
-    canvas.addEventListener("mouseup", handleMouseUp);
-
-    const startWave = () => {
-      enemies = [];
-      const enemyCount = 3 + currentWave;
-
-      if (currentWave === 2) {
-        // Vague 2 : ennemis des deux côtés
-        const enemiesPerSide = Math.ceil(enemyCount / 2);
-
-        // Ennemis à droite
-        for (let i = 0; i < enemiesPerSide; i++) {
-          const x = canvas.width - 100 - i * 60;
-          const y = canvas.height - 150;
-          enemies.push(new Enemy(x, y));
-        }
-
-        // Ennemis à gauche
-        for (let i = 0; i < enemyCount - enemiesPerSide; i++) {
-          const x = 100 + i * 60;
-          const y = canvas.height - 150;
-          enemies.push(new Enemy(x, y));
-        }
-      } else {
-        // Vague 1 : ennemis seulement à droite
-        for (let i = 0; i < enemyCount; i++) {
-          const x = canvas.width - 100 - i * 60;
-          const y = canvas.height - 150;
-          enemies.push(new Enemy(x, y));
-        }
-      }
-    };
-
-    const spawnChest = () => {
-      const x = canvas.width / 2 - 25;
-      const y = canvas.height - 140;
-      chest = new Chest(x, y);
-      state = GameState.CHEST;
-      setGameState(GameState.CHEST);
-    };
-
-    const spawnBoss = () => {
-      const x = canvas.width - 150;
-      const y = canvas.height - 200;
-      boss = new Boss(x, y);
-      state = GameState.BOSS;
-      setGameState(GameState.BOSS);
-      setWaveInfo("BOSS");
-    };
-
-    const createPlatformCourse = () => {
-      platforms = [];
-      const groundY = canvas.height - 30;
-      const startX = 100;
-      const goalX = canvas.width - 250;
-
-      // Plateforme de départ
-      platforms.push(new Platform(startX, groundY - 50, 150, 30));
-
-      // Parcours DIFFICILE avec plateformes variées et aléatoires
-      let currentX = startX + 200;
-      let currentY = groundY - 50;
-
-      // Paramètres aléatoires pour un parcours PLUS DIFFICILE
-      const platformWidth = 80 + Math.random() * 40; // Entre 80 et 120 (plus petites)
-      const platformSpacing = 200 + Math.random() * 100; // Entre 200 et 300 (plus espacées)
-      const maxHeight = canvas.height - 400 + Math.random() * 150; // Plus haut
-      const minHeight = groundY - 100 - Math.random() * 150; // Plus bas
-      const heightVariationRange = 100 + Math.random() * 100; // Entre 100 et 200 (grands sauts)
-
-      // Nombre de plateformes variable (moins de plateformes = plus difficile)
-      const numPlatforms = 3 + Math.floor(Math.random() * 3); // Entre 3 et 5 plateformes
-
-      for (let i = 0; i < numPlatforms && currentX < goalX - 100; i++) {
-        // Variation de hauteur plus aléatoire et plus extrême
-        const heightVariation = Math.random() * heightVariationRange * 2 - heightVariationRange;
-        currentY = Math.max(maxHeight, Math.min(minHeight, currentY + heightVariation));
-
-        // Largeur de plateforme variable (souvent plus petites)
-        const currentPlatformWidth = platformWidth + (Math.random() * 30 - 15);
-
-        platforms.push(new Platform(currentX, currentY, currentPlatformWidth, 30));
-
-        // Espacement variable (souvent plus grand)
-        const currentSpacing = platformSpacing + (Math.random() * 60 - 30);
-        currentX += currentSpacing;
+      // Dessiner le sol
+      if (imagesRef.current.ground) {
+        ctx.drawImage(imagesRef.current.ground, 0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
       }
 
-      // Plateforme d'arrivée
-      platforms.push(new Platform(goalX, groundY - 50, 150, 30));
+      // Animation d'intro du boss
+      if (game.state === "boss-intro") {
+        game.bossIntroProgress += 0.005 * deltaTime;
 
-      // Créer l'étoile tout à droite de l'écran, en l'air (position variable)
-      const starX = canvas.width - 100;
-      const starY = canvas.height - 200 - Math.random() * 150; // Entre 200 et 350 pixels du sol
-      star = new Star(starX, starY);
+        if (game.bossIntroProgress < 1 && game.boss) {
+          // Animation de tremblement et zoom
+          const shake = Math.sin(game.bossIntroProgress * 20) * 5;
+          const scale = 0.5 + game.bossIntroProgress * 0.5;
 
-      // Réinitialiser la position du joueur
-      player.x = startX + 30;
-      player.y = groundY - 110;
-    };
+          ctx.save();
+          ctx.translate(shake, shake);
 
-    const startPlatformCourse = () => {
-      createPlatformCourse();
-      state = GameState.PLATFORM;
-      setGameState(GameState.PLATFORM);
-      setWaveInfo("Parcours");
-    };
-
-    interface Rect {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }
-
-    const checkCollision = (rect1: Rect, rect2: Rect) => {
-      return (
-        rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y
-      );
-    };
-
-    const updateWave = () => {
-      enemies.forEach((enemy) => {
-        enemy.update(player, canvas);
-
-        // Les ennemis font des dégâts quand ils attaquent
-        if (enemy.isAttacking) {
-          const attackBox = enemy.getAttackBox();
-          if (checkCollision(player, attackBox)) {
-            // Dégâts infligés par l'ennemi
-            const damage = 8;
-            player.takeDamage(damage);
-            particleSystem.createHitEffect(player.x + player.width / 2, player.y + player.height / 2, "#ff0000");
-            camera.addShake(3);
-
-            damageNumbers.push(new DamageNumber(player.x + player.width / 2, player.y, damage, "#ff0000"));
+          if (imagesRef.current.boss && game.boss) {
+            const centerX = CANVAS_WIDTH / 2 - (game.boss.width * scale) / 2;
+            const centerY = CANVAS_HEIGHT / 2 - (game.boss.height * scale) / 2;
+            ctx.globalAlpha = game.bossIntroProgress;
+            ctx.drawImage(imagesRef.current.boss, centerX, centerY, game.boss.width * scale, game.boss.height * scale);
           }
-        }
 
-        // Dégâts de contact si l'ennemi est très proche (collision directe)
-        const distance = Math.abs(player.x - enemy.x);
-        if (distance < 20 && !enemy.isAttacking) {
-          // Petit dégât de contact continu (seulement si très proche)
-          if (gameAnimationFrame % 30 === 0) {
-            // Toutes les 30 frames
-            const damage = 2;
-            player.takeDamage(damage);
-            particleSystem.createHitEffect(player.x + player.width / 2, player.y + player.height / 2, "#ff6666");
-            camera.addShake(1);
+          ctx.restore();
 
-            damageNumbers.push(new DamageNumber(player.x + player.width / 2, player.y, damage, "#ff6666"));
-          }
-        }
-      });
-
-      // Attaque au corps à corps
-      if (player.isAttacking) {
-        const attackBox = player.getAttackBox();
-        enemies.forEach((enemy, index) => {
-          if (checkCollision(enemy, attackBox)) {
-            const damage = 20;
-            enemy.takeDamage(damage);
-            particleSystem.createHitEffect(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, "#ffd700");
-            camera.addShake(2);
-
-            // Afficher le nombre de dégâts
-            damageNumbers.push(new DamageNumber(enemy.x + enemy.width / 2, enemy.y, damage, "#ffd700"));
-
-            if (enemy.isDead()) {
-              combo++;
-              comboTimer = 180; // 3 secondes à 60fps
-              comboMultiplier = Math.min(1 + combo * 0.1, 3); // Max x3
-              const points = Math.floor(100 * comboMultiplier);
-              score += points;
-
-              particleSystem.createDeathEffect(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
-              camera.addShake(5);
-
-              // Afficher le score gagné
-              damageNumbers.push(new DamageNumber(enemy.x + enemy.width / 2, enemy.y - 20, points, "#00ff00"));
-
-              enemies.splice(index, 1);
-            }
-          }
-        });
-      }
-
-      // Collisions des balles avec les ennemis
-      const bullets = player.getBullets();
-      bullets.forEach((bullet) => {
-        if (!bullet.active) return;
-        enemies.forEach((enemy, enemyIndex) => {
-          if (bullet.checkCollision(enemy)) {
-            const damage = bullet.damage;
-            enemy.takeDamage(damage);
-            particleSystem.createHitEffect(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, "#ffd700");
-            camera.addShake(1);
-            bullet.active = false;
-
-            // Afficher le nombre de dégâts
-            damageNumbers.push(new DamageNumber(enemy.x + enemy.width / 2, enemy.y, damage, "#ffd700"));
-
-            if (enemy.isDead()) {
-              combo++;
-              comboTimer = 180;
-              comboMultiplier = Math.min(1 + combo * 0.1, 3);
-              const points = Math.floor(100 * comboMultiplier);
-              score += points;
-
-              particleSystem.createDeathEffect(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
-              camera.addShake(5);
-
-              damageNumbers.push(new DamageNumber(enemy.x + enemy.width / 2, enemy.y - 20, points, "#00ff00"));
-
-              enemies.splice(enemyIndex, 1);
-            }
-          }
-        });
-      });
-
-      if (enemies.length === 0) {
-        // Réinitialiser le combo quand la vague se termine
-        combo = 0;
-        comboMultiplier = 1;
-
-        if (currentWave === 1) {
-          // Vague 1 : parcours puis coffre
-          stateTransitionTimer = 60;
-          fadeAlpha = 0;
-          setTimeout(() => {
-            startPlatformCourse();
-          }, 1000);
-        } else if (currentWave === 2) {
-          // Vague 2 : parcours puis coffre avec le pet
-          stateTransitionTimer = 60;
-          fadeAlpha = 0;
-          setTimeout(() => {
-            startPlatformCourse();
-          }, 1000);
+          // Texte "BOSS FINAL"
+          ctx.fillStyle = `rgba(255, 0, 0, ${game.bossIntroProgress})`;
+          ctx.font = "bold 60px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("BOSS FINAL", CANVAS_WIDTH / 2, 100);
         } else {
-          // Vague 3 et plus : spawn du boss
-          stateTransitionTimer = 60;
-          fadeAlpha = 0;
-          setTimeout(() => {
-            spawnBoss();
-          }, 1000);
+          game.state = "playing";
+          game.bossIntroProgress = 0;
+          setGameState("playing");
         }
+
+        animationFrameId = requestAnimationFrame(gameLoop);
+        return;
       }
 
-      // Mettre à jour le combo timer
-      if (comboTimer > 0) {
-        comboTimer--;
-        if (comboTimer === 0) {
-          combo = 0;
-          comboMultiplier = 1;
+      // Animation d'intro du pet
+      if (game.state === "pet-intro" && game.pet) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        if (imagesRef.current.pet) {
+          ctx.drawImage(imagesRef.current.pet, CANVAS_WIDTH / 2 - 50, CANVAS_HEIGHT / 2 - 50, 100, 100);
         }
-      }
 
-      // Mettre à jour les nombres de dégâts
-      damageNumbers.forEach((num, index) => {
-        num.update();
-        if (num.isDead()) {
-          damageNumbers.splice(index, 1);
+        ctx.fillStyle = "white";
+        ctx.font = "bold 30px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Vous avez reçu un compagnon !", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 100);
+        ctx.font = "20px Arial";
+        ctx.fillText("Appuyez sur Entrée pour continuer", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 140);
+
+        if (game.keys["enter"]) {
+          game.state = "boss-intro";
+          setGameState("boss-intro");
+          spawnBoss();
         }
-      });
-    };
 
-    const updateChest = () => {
-      if (chest && chest.checkCollision(player)) {
-        const petFound = chest.open();
-        if (petFound) {
-          score += 500;
-          particleSystem.createRewardEffect(chest.x + chest.width / 2, chest.y + chest.height / 2);
-
-          if (currentWave === 1) {
-            // Passer à la vague 2 après la vague 1
-            currentWave++;
-            chest = null;
-            setTimeout(() => {
-              state = GameState.WAVE;
-              setGameState(GameState.WAVE);
-              setWaveInfo(`Vague: ${currentWave}`);
-              startWave();
-            }, 2000);
-          } else if (currentWave === 2 && !pet) {
-            // Après la vague 2, créer le pet et spawner le boss
-            pet = new Pet(player.x + player.width + 20, player.y);
-            chest = null;
-            setTimeout(() => {
-              spawnBoss();
-            }, 2000);
-          }
-        }
-      }
-
-      // Mettre à jour le pet s'il existe (même dans l'état CHEST)
-      if (pet && !pet.isDead()) {
-        pet.update(player, null, canvas, particleSystem);
-      }
-    };
-
-    const updatePlatform = () => {
-      const groundY = canvas.height - 30;
-      let onPlatform = false;
-
-      // Vérifier les collisions avec les plateformes
-      platforms.forEach((platform) => {
-        if (platform.checkCollision(player)) {
-          onPlatform = true;
-          player.y = platform.getTop() - player.height;
-          player.velocityY = 0;
-          player.isGrounded = true;
-        }
-      });
-
-      // Si le joueur n'est sur aucune plateforme, vérifier si au sol
-      if (!onPlatform) {
-        if (player.y + player.height >= groundY) {
-          player.y = groundY - player.height;
-          player.velocityY = 0;
-          player.isGrounded = true;
-        } else {
-          player.isGrounded = false;
-        }
-      }
-
-      // Mettre à jour l'étoile
-      if (star && !star.collected) {
-        star.update();
-
-        // Vérifier la collision avec l'étoile
-        if (star.checkCollision(player)) {
-          star.collect();
-          score += 200;
-          particleSystem.createRewardEffect(star.x + star.width / 2, star.y + star.height / 2);
-          particleSystem.createExplosion(star.x + star.width / 2, star.y + star.height / 2, "#FFD700");
-
-          // Passer directement au niveau suivant quand l'étoile est collectée
-          if (currentWave === 1) {
-            // Après avoir collecté l'étoile de la vague 1, spawner le coffre
-            setTimeout(() => {
-              spawnChest();
-            }, 500);
-          } else if (currentWave === 2) {
-            // Après avoir collecté l'étoile de la vague 2, spawner le coffre avec le pet
-            setTimeout(() => {
-              spawnChest();
-            }, 500);
-          }
-        }
+        animationFrameId = requestAnimationFrame(gameLoop);
+        return;
       }
 
       // Mettre à jour le joueur
-      player.update(keys, canvas, false, particleSystem);
+      const player = game.player;
 
-      // Vérifier si le joueur tombe hors de l'écran - MORT INSTANTANÉE
-      if (player.y > canvas.height) {
-        // Effet d'explosion à la position du joueur
-        const explosionX = player.x + player.width / 2;
-        const explosionY = canvas.height - 50;
-        particleSystem.createExplosion(explosionX, explosionY, "#ff0000");
-        camera.addShake(15);
-
-        // Tuer le joueur instantanément
-        player.health = 0;
-        state = GameState.GAME_OVER;
-        setGameState(GameState.GAME_OVER);
-        setGameOverMessage(`Vous êtes tombé! Score final: ${score.toLocaleString()}`);
-        setShowGameOver(true);
-      }
-    };
-
-    const updateBoss = () => {
-      if (!boss) return;
-
-      boss.update(player, canvas, particleSystem);
-
-      // Mettre à jour le pet s'il existe
-      if (pet && !pet.isDead() && boss) {
-        const currentPet = pet;
-        const currentBoss = boss;
-
-        currentPet.update(player, currentBoss, canvas, particleSystem);
-
-        // Collisions des balles du pet avec le boss
-        const petBullets = currentPet.getBullets();
-        petBullets.forEach((bullet) => {
-          if (!bullet.active) return;
-          if (bullet.checkCollision(currentBoss)) {
-            currentBoss.takeDamage(bullet.damage);
-            particleSystem.createHitEffect(currentBoss.x + currentBoss.width / 2, currentBoss.y + currentBoss.height / 2, "#ff69b4");
-            bullet.active = false;
-            if (currentBoss.isDead()) {
-              score += 2000;
-              camera.addShake(20);
-              particleSystem.createExplosion(currentBoss.x + currentBoss.width / 2, currentBoss.y + currentBoss.height / 2, "#ff0000");
-
-              state = GameState.VICTORY;
-              setGameState(GameState.VICTORY);
-              setVictoryMessage(`Félicitations! Vous avez battu le boss! Score: ${score.toLocaleString()}`);
-              setShowVictory(true);
-            }
-          }
-        });
-
-        // Le boss peut attaquer le pet
-        if (currentBoss.isAttacking) {
-          const attackBox = currentBoss.getAttackBox();
-          const petRect = { x: currentPet.x, y: currentPet.y, width: currentPet.width, height: currentPet.height };
-          if (checkCollision(petRect, attackBox)) {
-            currentPet.takeDamage(5);
-            particleSystem.createHitEffect(currentPet.x + currentPet.width / 2, currentPet.y + currentPet.height / 2, "#ff0000");
-          }
-        }
-
-        // Les balles du boss peuvent toucher le pet
-        const bossBullets = currentBoss.getBullets();
-        bossBullets.forEach((bullet) => {
-          if (!bullet.active) return;
-          const petRect = { x: currentPet.x, y: currentPet.y, width: currentPet.width, height: currentPet.height };
-          if (bullet.checkCollision(petRect)) {
-            currentPet.takeDamage(bullet.damage);
-            particleSystem.createHitEffect(currentPet.x + currentPet.width / 2, currentPet.y + currentPet.height / 2, "#ff0000");
-            bullet.active = false;
-          }
-        });
-      }
-
-      // Vérifier si le joueur est au-dessus du boss (peut sauter par-dessus)
-      const playerBottom = player.y + player.height;
-      const bossTop = boss.y;
-      const isPlayerAboveBoss = playerBottom < bossTop;
-
-      if (boss.isAttacking) {
-        const attackBox = boss.getAttackBox();
-        // L'attaque ne touche que si le joueur n'est pas au-dessus du boss
-        if (checkCollision(player, attackBox) && !isPlayerAboveBoss) {
-          const damage = 5;
-          player.takeDamage(damage);
-          particleSystem.createHitEffect(player.x + player.width / 2, player.y + player.height / 2, "#ff0000");
-          camera.addShake(8);
-
-          damageNumbers.push(new DamageNumber(player.x + player.width / 2, player.y, damage, "#ff0000"));
-        }
-      }
-
-      if (boss.isSpecialAttacking) {
-        const attackBox = boss.getSpecialAttackBox();
-        // L'attaque spéciale ne touche que si le joueur n'est pas au-dessus du boss
-        if (checkCollision(player, attackBox) && !isPlayerAboveBoss) {
-          const damage = 8;
-          player.takeDamage(damage);
-          particleSystem.createHitEffect(player.x + player.width / 2, player.y + player.height / 2, "#ff00ff");
-          camera.addShake(12);
-
-          damageNumbers.push(new DamageNumber(player.x + player.width / 2, player.y, damage, "#ff00ff"));
-        }
-      }
-
-      // Attaque au corps à corps
-      if (player.isAttacking) {
-        const attackBox = player.getAttackBox();
-        if (checkCollision(boss, attackBox)) {
-          boss.takeDamage(15);
-          particleSystem.createHitEffect(boss.x + boss.width / 2, boss.y + boss.height / 2, "#ffd700");
-          if (boss.isDead()) {
-            score += 2000;
-            state = GameState.VICTORY;
-            setGameState(GameState.VICTORY);
-            setVictoryMessage(`Félicitations! Vous avez battu le boss! Score: ${score}`);
-            setShowVictory(true);
-          }
-        }
-      }
-
-      // Collisions des balles du joueur avec le boss
-      if (boss) {
-        const currentBoss = boss;
-        const bullets = player.getBullets();
-        bullets.forEach((bullet) => {
-          if (!bullet.active) return;
-          if (bullet.checkCollision(currentBoss)) {
-            const damage = bullet.damage;
-            currentBoss.takeDamage(damage);
-            particleSystem.createHitEffect(currentBoss.x + currentBoss.width / 2, currentBoss.y + currentBoss.height / 2, "#ffd700");
-            camera.addShake(2);
-            bullet.active = false;
-
-            damageNumbers.push(new DamageNumber(currentBoss.x + currentBoss.width / 2, currentBoss.y, damage, "#ffd700"));
-
-            if (currentBoss.isDead()) {
-              score += 2000;
-              camera.addShake(20);
-              particleSystem.createExplosion(currentBoss.x + currentBoss.width / 2, currentBoss.y + currentBoss.height / 2, "#ff0000");
-
-              state = GameState.VICTORY;
-              setGameState(GameState.VICTORY);
-              setVictoryMessage(`Félicitations! Vous avez battu le boss! Score: ${score.toLocaleString()}`);
-              setShowVictory(true);
-            }
-          }
-        });
-      }
-
-      // Collisions des balles du boss avec le joueur
-      if (boss) {
-        const bossBullets = boss.getBullets();
-        bossBullets.forEach((bullet) => {
-          if (!bullet.active) return;
-          if (bullet.checkCollision(player)) {
-            const damage = 4;
-            player.takeDamage(damage);
-            particleSystem.createHitEffect(player.x + player.width / 2, player.y + player.height / 2, "#ff0000");
-            camera.addShake(5);
-            bullet.active = false;
-
-            damageNumbers.push(new DamageNumber(player.x + player.width / 2, player.y, damage, "#ff0000"));
-          }
-        });
-      }
-
-      if (player.health <= 0) {
-        state = GameState.GAME_OVER;
-        setGameState(GameState.GAME_OVER);
-        setGameOverMessage(`Score final: ${score.toLocaleString()}`);
-        setShowGameOver(true);
-      }
-    };
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Mettre à jour la caméra
-      camera.update();
-      const cameraOffset = camera.getOffset();
-
-      ctx.save();
-
-      // Appliquer seulement le shake de caméra (effet visuel)
-      if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
-        ctx.translate(cameraOffset.x, cameraOffset.y);
-      }
-
-      // Dessiner l'image de fond
-      if (backgroundLoaded && backgroundImage.complete) {
-        // Calculer le ratio pour couvrir tout le canvas
-        const scaleX = canvas.width / backgroundImage.width;
-        const scaleY = canvas.height / backgroundImage.height;
-        const scale = Math.max(scaleX, scaleY);
-
-        const scaledWidth = backgroundImage.width * scale;
-        const scaledHeight = backgroundImage.height * scale;
-        const offsetX = (canvas.width - scaledWidth) / 2;
-        const offsetY = (canvas.height - scaledHeight) / 2;
-
-        ctx.drawImage(backgroundImage, offsetX, offsetY, scaledWidth, scaledHeight);
+      // Contrôles
+      if (game.keys["q"] || game.keys["arrowleft"]) {
+        player.velocityX = -MOVE_SPEED;
+        player.direction = -1;
+      } else if (game.keys["d"] || game.keys["arrowright"]) {
+        player.velocityX = MOVE_SPEED;
+        player.direction = 1;
       } else {
-        // Fallback : gradient si l'image n'est pas chargée
-        const time = gameAnimationFrame * 0.01;
-        const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        bgGradient.addColorStop(0, `hsl(${200 + Math.sin(time) * 10}, 70%, ${85 + Math.sin(time * 0.5) * 5}%)`);
-        bgGradient.addColorStop(0.5, `hsl(${180 + Math.sin(time * 0.7) * 10}, 60%, ${75 + Math.sin(time * 0.3) * 5}%)`);
-        bgGradient.addColorStop(1, `hsl(${120 + Math.sin(time * 0.5) * 5}, 50%, ${50 + Math.sin(time * 0.4) * 3}%)`);
-        ctx.fillStyle = bgGradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        player.velocityX = 0;
       }
 
-      // Dessiner les plateformes si on est en mode parcours
-      if (state === GameState.PLATFORM && platforms.length > 0) {
-        platforms.forEach((platform) => {
-          if (platform) {
-            platform.draw(ctx);
-          }
-        });
+      // S'accroupir
+      player.isCrouching = game.keys["s"] || game.keys["arrowdown"];
 
-        // Dessiner l'étoile si elle n'est pas collectée
-        if (star && !star.collected) {
-          star.draw(ctx);
+      // Sauter
+      if ((game.keys[" "] || game.keys["z"] || game.keys["arrowup"]) && player.isOnGround) {
+        player.velocityY = JUMP_FORCE;
+        player.isOnGround = false;
+      }
+
+      // Attaquer
+      if (game.keys["e"] && player.attackCooldown <= 0) {
+        player.attackCooldown = 30;
+
+        if (props.game.projectileImageUrl && imagesRef.current.projectile) {
+          // Attaque à distance
+          game.projectiles.push({
+            x: player.x + (player.direction === 1 ? player.width : 0),
+            y: player.y + player.height / 2,
+            velocityX: player.direction * 1.7,
+            width: 30,
+            height: 20,
+          });
+        } else {
+          // Attaque de mêlée
+          const attackX = player.x + (player.direction === 1 ? player.width : -ATTACK_RANGE);
+          const attackBox = {
+            x: attackX,
+            y: player.y,
+            width: ATTACK_RANGE,
+            height: player.height,
+          };
+
+          // Toucher les monstres
+          game.monsters.forEach((monster) => {
+            if (checkCollision(attackBox as Entity, monster)) {
+              monster.health -= 20;
+            }
+          });
+
+          // Toucher le boss
+          if (game.boss && checkCollision(attackBox as Entity, game.boss)) {
+            game.boss.health -= 15;
+          }
         }
       }
 
-      // Dessiner selon l'état
-      if (state === GameState.WAVE) {
-        enemies.forEach((enemy) => enemy.draw(ctx));
-      } else if (state === GameState.CHEST) {
-        if (chest) chest.draw(ctx);
-      } else if (state === GameState.BOSS) {
-        if (boss) boss.draw(ctx);
+      if (player.attackCooldown > 0) player.attackCooldown -= deltaTime;
+
+      // Physique du joueur
+      player.velocityY += GRAVITY * deltaTime;
+      player.x += player.velocityX * deltaTime;
+      player.y += player.velocityY * deltaTime;
+
+      // Collision avec le sol
+      if (player.y + player.height >= GROUND_Y) {
+        player.y = GROUND_Y - player.height;
+        player.velocityY = 0;
+        player.isOnGround = true;
       }
 
-      // Joueur
-      player.draw(ctx);
+      // Limites de l'écran
+      player.x = Math.max(0, Math.min(CANVAS_WIDTH - player.width, player.x));
 
-      // Pet (si actif)
-      if (pet && !pet.isDead()) {
-        pet.draw(ctx);
-      }
+      // Mettre à jour les projectiles
+      game.projectiles = game.projectiles.filter((proj) => {
+        proj.x += proj.velocityX * deltaTime;
 
-      // Système de particules
-      particleSystem.update();
-      particleSystem.draw(ctx);
+        // Vérifier collision avec monstres
+        game.monsters.forEach((monster) => {
+          if (
+            proj.x < monster.x + monster.width &&
+            proj.x + proj.width > monster.x &&
+            proj.y < monster.y + monster.height &&
+            proj.y + proj.height > monster.y
+          ) {
+            monster.health -= 15;
+            proj.velocityX = 0; // Marquer pour suppression
+          }
+        });
 
-      // Dessiner les nombres de dégâts
-      damageNumbers.forEach((num) => {
-        num.draw(ctx);
+        // Vérifier collision avec boss
+        if (game.boss) {
+          if (
+            proj.x < game.boss.x + game.boss.width &&
+            proj.x + proj.width > game.boss.x &&
+            proj.y < game.boss.y + game.boss.height &&
+            proj.y + proj.height > game.boss.y
+          ) {
+            game.boss.health -= 10;
+            proj.velocityX = 0;
+          }
+        }
+
+        return proj.x > 0 && proj.x < CANVAS_WIDTH && proj.velocityX !== 0;
       });
 
-      // Effet easter egg
-      if (easterEggActive) {
-        ctx.fillStyle = "rgba(255, 215, 0, 0.3)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ffd700";
-        ctx.font = "bold 30px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("EASTER EGG!", canvas.width / 2, 50);
-        ctx.textAlign = "left";
+      // Mettre à jour les monstres
+      game.monsters = game.monsters.filter((monster) => {
+        if (monster.health <= 0) return false;
+
+        // IA du monstre
+        const distanceToPlayer = player.x - monster.x;
+
+        if (Math.abs(distanceToPlayer) > 50) {
+          monster.direction = distanceToPlayer > 0 ? 1 : -1;
+          monster.velocityX = monster.direction * 1.5;
+        } else {
+          monster.velocityX = 0;
+
+          // Attaquer le joueur
+          if (monster.attackCooldown <= 0) {
+            monster.attackCooldown = 60;
+            if (checkCollision(monster, player)) {
+              player.health -= 10;
+            }
+          }
+        }
+
+        if (monster.attackCooldown > 0) monster.attackCooldown -= deltaTime;
+
+        // Physique
+        monster.velocityY += GRAVITY * deltaTime;
+        monster.x += monster.velocityX * deltaTime;
+        monster.y += monster.velocityY * deltaTime;
+
+        if (monster.y + monster.height >= GROUND_Y) {
+          monster.y = GROUND_Y - monster.height;
+          monster.velocityY = 0;
+          monster.isOnGround = true;
+        }
+
+        return true;
+      });
+
+      // Mettre à jour le boss
+      if (game.boss) {
+        if (game.boss.health <= 0) {
+          game.state = "victory";
+          setGameState("victory");
+        } else {
+          const distanceToPlayer = player.x - game.boss.x;
+
+          if (Math.abs(distanceToPlayer) > 10) {
+            game.boss.velocityX = distanceToPlayer > 0 ? 1.2 : -1.2;
+          } else {
+            game.boss.velocityX = 0;
+          }
+
+          if (checkCollision(game.boss, player)) {
+            player.health -= 20;
+          }
+
+          // Saut aléatoire du boss
+          if (game.boss.jumpCooldown > 0) {
+            game.boss.jumpCooldown -= deltaTime;
+          } else if (game.boss.isOnGround && Math.random() < 0.05 * deltaTime) {
+            // Chance de sauter ajustée avec deltaTime
+            game.boss.velocityY = JUMP_FORCE * 1.1; // Saute un peu plus haut que le joueur
+            game.boss.isOnGround = false;
+            game.boss.jumpCooldown = 250; // Cooldown avant le prochain saut possible
+          }
+
+          game.boss.velocityY += GRAVITY * deltaTime;
+          game.boss.x += game.boss.velocityX * deltaTime;
+          game.boss.y += game.boss.velocityY * deltaTime;
+
+          if (game.boss.y + game.boss.height >= GROUND_Y) {
+            game.boss.y = GROUND_Y - game.boss.height;
+            game.boss.velocityY = 0;
+            game.boss.isOnGround = true;
+          }
+        }
       }
 
-      ctx.restore();
+      // Mettre à jour le pet
+      if (game.pet) {
+        const dx = player.x - 80 - game.pet.x;
+        const dy = player.y - game.pet.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // Transition de fade entre les états (après restore pour couvrir tout l'écran)
-      if (stateTransitionTimer > 0) {
-        fadeAlpha = Math.min(1, (60 - stateTransitionTimer) / 30);
-        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha * 0.5})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        stateTransitionTimer--;
+        if (distance > 10) {
+          game.pet.x += (dx / distance) * 0.6 * deltaTime;
+          game.pet.y += (dy / distance) * 0.6 * deltaTime;
+        }
       }
 
-      // UI overlay (non affecté par la caméra)
-      drawUIOverlay(ctx, combo, comboMultiplier);
-    };
+      // Vérifier fin de vague
+      if (game.monsters.length === 0 && !game.boss && game.state === "playing") {
+        if (game.wave < 3) {
+          game.wave++;
+          game.projectiles = []; // Supprimer tous les projectiles
+          game.state = "wave-complete";
+          setGameState("wave-complete");
+          setCurrentWave(game.wave);
+        } else {
+          // Donner le pet avant le boss
+          game.projectiles = []; // Supprimer tous les projectiles
+          game.pet = {
+            x: player.x - 80,
+            y: player.y,
+            targetX: player.x - 80,
+            targetY: player.y,
+          };
+          game.state = "pet-intro";
+          setGameState("pet-intro");
+        }
+      }
 
-    const drawUIOverlay = (ctx: CanvasRenderingContext2D, currentCombo: number, multiplier: number) => {
-      // Afficher le combo
-      if (currentCombo > 0 && comboTimer > 0) {
-        const comboAlpha = Math.min(1, comboTimer / 60);
+      // Game Over
+      if (player.health <= 0) {
+        game.state = "game-over";
+        setGameState("game-over");
+      }
+
+      // Dessiner les projectiles
+      game.projectiles.forEach((proj) => {
+        if (imagesRef.current.projectile) {
+          ctx.drawImage(imagesRef.current.projectile, proj.x, proj.y, proj.width, proj.height);
+        } else {
+          ctx.fillStyle = "yellow";
+          ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
+        }
+      });
+
+      // Dessiner les monstres
+      game.monsters.forEach((monster) => {
+        if (imagesRef.current.monster) {
+          ctx.save();
+          if (monster.direction === -1) {
+            ctx.scale(-1, 1);
+            ctx.drawImage(imagesRef.current.monster, -monster.x - monster.width, monster.y, monster.width, monster.height);
+          } else {
+            ctx.drawImage(imagesRef.current.monster, monster.x, monster.y, monster.width, monster.height);
+          }
+          ctx.restore();
+        }
+
+        // Barre de vie du monstre
+        ctx.fillStyle = "red";
+        ctx.fillRect(monster.x, monster.y - 10, monster.width, 5);
+        ctx.fillStyle = "green";
+        ctx.fillRect(monster.x, monster.y - 10, (monster.health / monster.maxHealth) * monster.width, 5);
+      });
+
+      // Dessiner le boss
+      if (game.boss && imagesRef.current.boss) {
+        ctx.drawImage(imagesRef.current.boss, game.boss.x, game.boss.y, game.boss.width, game.boss.height);
+
+        // Barre de vie du boss
+        ctx.fillStyle = "darkred";
+        ctx.fillRect(game.boss.x, game.boss.y - 15, game.boss.width, 8);
+        ctx.fillStyle = "red";
+        ctx.fillRect(game.boss.x, game.boss.y - 15, (game.boss.health / game.boss.maxHealth) * game.boss.width, 8);
+      }
+
+      // Dessiner le pet
+      if (game.pet && imagesRef.current.pet) {
+        ctx.drawImage(imagesRef.current.pet, game.pet.x, game.pet.y, 50, 50);
+      }
+
+      // Dessiner le joueur
+      if (imagesRef.current.player) {
         ctx.save();
-        ctx.globalAlpha = comboAlpha;
-        ctx.fillStyle = "#ffd700";
-        ctx.font = "bold 24px Arial";
-        ctx.textAlign = "center";
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 3;
-        ctx.strokeText(`COMBO x${multiplier.toFixed(1)}`, canvas.width / 2, 80);
-        ctx.fillText(`COMBO x${multiplier.toFixed(1)}`, canvas.width / 2, 80);
+        const playerHeight = player.isCrouching ? player.height * 0.7 : player.height;
+        const playerY = player.isCrouching ? player.y + player.height * 0.3 : player.y;
+
+        if (player.direction === -1) {
+          ctx.scale(-1, 1);
+          ctx.drawImage(imagesRef.current.player, -player.x - player.width, playerY, player.width, playerHeight);
+        } else {
+          ctx.drawImage(imagesRef.current.player, player.x, playerY, player.width, playerHeight);
+        }
         ctx.restore();
-      }
-    };
 
-    const gameLoop = () => {
-      gameAnimationFrame++;
-
-      if (state !== GameState.GAME_OVER && state !== GameState.VICTORY) {
-        player.update(keys, canvas, mouseClick || isMouseDown, particleSystem);
-
-        if (state === GameState.WAVE) {
-          updateWave();
-        } else if (state === GameState.PLATFORM) {
-          updatePlatform();
-        } else if (state === GameState.CHEST) {
-          updateChest();
-        } else if (state === GameState.BOSS) {
-          updateBoss();
+        // Dessiner l'arme (toujours visible)
+        if (imagesRef.current.weapon) {
+          const weaponX = player.x + (player.direction === 1 ? player.width : -40);
+          ctx.drawImage(imagesRef.current.weapon, weaponX, player.y + 25, 40, 40);
         }
-
-        // Mise à jour UI
-        const healthPercent = (player.health / player.maxHealth) * 100;
-        setPlayerHealth(healthPercent);
-        setHealthText(`${Math.max(0, Math.ceil(player.health))}/${player.maxHealth}`);
-        setScoreInfo(`Score: ${score.toLocaleString()}`);
-        if (state === GameState.WAVE) {
-          setWaveInfo(`Vague: ${currentWave}`);
-        }
-
-        // La caméra est utilisée uniquement pour le shake, pas pour le suivi
       }
 
-      draw();
-      requestAnimationFrame(gameLoop);
+      // Barre de vie du joueur
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(10, 10, 204, 24);
+      ctx.fillStyle = "darkred";
+      ctx.fillRect(12, 12, 200, 20);
+      ctx.fillStyle = "red";
+      ctx.fillRect(12, 12, (player.health / player.maxHealth) * 200, 20);
+      ctx.strokeStyle = "white";
+      ctx.strokeRect(12, 12, 200, 20);
+
+      // Texte de la vague
+      ctx.fillStyle = "white";
+      ctx.font = "bold 20px Arial";
+      ctx.textAlign = "left";
+      if (game.boss) {
+        ctx.fillText("BOSS FINAL", 10, 60);
+      } else {
+        ctx.fillText(`Vague ${game.wave}/3`, 10, 60);
+      }
+
+      animationFrameId = requestAnimationFrame(gameLoop);
     };
 
-    startWave();
-    gameLoop();
+    gameLoop(performance.now());
 
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
-      canvas.removeEventListener("click", handleMouseClick);
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      canvas.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("resize", updateCanvasSize);
+      cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [imagesLoaded, props.game.projectileImageUrl]);
 
-  return (
-    <div className="game-container">
-      <div className="ui-overlay">
-        <div className="health-bar-container">
-          <div className="health-label">Vie</div>
-          <div className="health-bar">
-            <div className="health-fill" style={{ width: `${playerHealth}%` }}></div>
-          </div>
-          <div className="health-text">{healthText}</div>
-        </div>
-        <div className="game-info">
-          <div className="wave-info">{waveInfo}</div>
-          <div className="score-info">{scoreInfo}</div>
+  const restartGame = () => {
+    gameStateRef.current = {
+      player: {
+        x: 100,
+        y: 300,
+        width: 65,
+        height: 75,
+        velocityX: 0,
+        velocityY: 0,
+        health: 100,
+        maxHealth: 100,
+        isOnGround: false,
+        isCrouching: false,
+        attackCooldown: 0,
+        direction: 1,
+      },
+      monsters: [],
+      boss: null,
+      projectiles: [],
+      pet: null,
+      keys: {},
+      wave: 1,
+      state: "playing",
+      bossIntroProgress: 0,
+    };
+    setGameState("playing");
+    setCurrentWave(1);
+    spawnWave(1);
+  };
+
+  const nextWave = () => {
+    spawnWave(gameStateRef.current.wave);
+    gameStateRef.current.state = "playing";
+    setGameState("playing");
+  };
+
+  if (!imagesLoaded) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-center">
+          <div className="text-2xl mb-4">Chargement du jeu...</div>
+          <div className="animate-spin text-4xl">⚔️</div>
         </div>
       </div>
-      <canvas id="gameCanvas" ref={canvasRef}></canvas>
-      {showGameOver && (
-        <div className="game-over-screen">
-          <h2>Game Over</h2>
-          <p>{gameOverMessage}</p>
-          <button onClick={() => window.location.reload()}>Rejouer</button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
+      <div className="relative">
+        <canvas ref={canvasRef} width={1000} height={600} className="border-4 border-gray-700 rounded-lg" />
+
+        {gameState === "wave-complete" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="text-center text-white">
+              <h2 className="text-4xl font-bold mb-4">Vague {currentWave - 1} terminée !</h2>
+              <button onClick={nextWave} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl">
+                Vague suivante
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gameState === "victory" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="text-center text-white">
+              <h2 className="text-5xl font-bold mb-4 text-yellow-400">🎉 VICTOIRE ! 🎉</h2>
+              <p className="text-xl mb-6">Vous avez vaincu le boss final !</p>
+              <button onClick={restartGame} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-xl">
+                Rejouer
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gameState === "game-over" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="text-center text-white">
+              <h2 className="text-5xl font-bold mb-4 text-red-500">GAME OVER</h2>
+              <p className="text-xl mb-6">Vous avez été vaincu...</p>
+              <button onClick={restartGame} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-xl">
+                Réessayer
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 bg-gray-800 text-white p-4 rounded-lg max-w-2xl">
+        <h3 className="font-bold text-xl mb-2">Contrôles :</h3>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>⬅️ Q ou Flèche Gauche : Reculer</div>
+          <div>➡️ D ou Flèche Droite : Avancer</div>
+          <div>⬆️ Z ou Espace : Sauter</div>
+          <div>⬇️ S ou Flèche Bas : S&apos;accroupir</div>
+          <div>⚔️ E : Attaquer</div>
+          <div className="text-yellow-400">🎮 N : Passer à la vague suivante (Cheat)</div>
         </div>
-      )}
-      {showVictory && (
-        <div className="victory-screen">
-          <h2>Victoire!</h2>
-          <p>{victoryMessage}</p>
-          <button onClick={() => window.location.reload()}>Rejouer</button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

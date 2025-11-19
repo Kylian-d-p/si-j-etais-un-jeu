@@ -13,6 +13,26 @@ export default function Home() {
   const [response, setResponse] = useState<string | null>(null);
   const [responses, setResponses] = useState<(string | undefined)[]>(questions.map(() => undefined));
 
+  const nextQuestion = async () => {
+    if (activeQuestionIndex < questions.length - 1) {
+      setResponses((prev) => {
+        const newResponses = [...prev];
+        newResponses[activeQuestionIndex] = response || undefined;
+        return newResponses;
+      });
+      setResponse(responses[activeQuestionIndex] || null);
+      setActiveQuestionIndex(activeQuestionIndex + 1);
+    } else {
+      setLoading(true);
+      const res = await createGame({ responses: responses.map((r) => r || "") });
+      if (res.serverError?.message) {
+        alert(res.serverError.message);
+        console.log(res.serverError);
+      }
+      setLoading(false);
+    }
+  };
+
   return (
     <main>
       {activeQuestionIndex < 0 ? (
@@ -26,7 +46,17 @@ export default function Home() {
           <h2 className="font-bold text-3xl">Question {activeQuestionIndex + 1} :</h2>
           <p>{questions[activeQuestionIndex].label}</p>
           {questions[activeQuestionIndex].responseType === "free" ? (
-            <Textarea className="border p-2 rounded-md min-h-[100px]" value={response || ""} onChange={(e) => setResponse(e.target.value)} />
+            <Textarea
+              onKeyDown={(e) => {
+                if (e.key == "Enter" && e.shiftKey == false) {
+                  e.preventDefault();
+                  nextQuestion();
+                }
+              }}
+              className="border p-2 rounded-md min-h-[100px]"
+              value={response || ""}
+              onChange={(e) => setResponse(e.target.value)}
+            />
           ) : (
             <div className="flex flex-col gap-3">
               {questions[activeQuestionIndex].choices.map((choice) => (
@@ -42,32 +72,8 @@ export default function Home() {
                 Précédent
               </Button>
             )}
-            <Button
-              onClick={async () => {
-                if (activeQuestionIndex < questions.length - 1) {
-                  setResponses((prev) => {
-                    const newResponses = [...prev];
-                    newResponses[activeQuestionIndex] = response || undefined;
-                    return newResponses;
-                  });
-                  setResponse(responses[activeQuestionIndex] || null);
-                  setActiveQuestionIndex(activeQuestionIndex + 1);
-                } else {
-                  setLoading(true);
-                  const res = await createGame({ responses: responses.map((r) => r || "") });
-                  setLoading(false);
-
-                  if (!res.data) {
-                    console.error("No data returned from createGame");
-                    return;
-                  }
-
-                  console.log(res.data);
-                }
-              }}
-              disabled={loading}
-            >
-              {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+            <Button onClick={nextQuestion} disabled={loading}>
+              {loading ? <Loader2 className="animate-spin" /> : null}
               {activeQuestionIndex < questions.length - 1 ? "Suivant" : "Terminer"}
             </Button>
           </div>

@@ -11,18 +11,20 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Game {
-  id        String   @id @default(uuid())
-  mainCharacterImageUrl String
-  backgroundImageUrl    String
-  weaponImageUrl        String
-  projectileImageUrl     String
-  monstersImageUrl      String
-  bossImageUrl          String
-  groundImageUrl        String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  mainCharacterImageUrl String   @map("main_character_image_url")
+  backgroundImageUrl    String   @map("background_image_url")
+  weaponImageUrl        String   @map("weapon_image_url")
+  projectileImageUrl    String?  @map("projectile_image_url")
+  monstersImageUrl      String   @map("monsters_image_url")
+  bossImageUrl          String   @map("boss_image_url")
+  groundImageUrl        String   @map("ground_image_url")
+  petImageUrl           String   @map("pet_image_url")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("games")
 }

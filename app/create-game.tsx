@@ -2,9 +2,11 @@
 
 import { generateImage } from "@/lib/comfyui";
 import { openai } from "@/lib/openai";
+import prisma from "@/lib/prisma";
 import { questions } from "@/lib/questions";
 import { createSafeAction } from "@/lib/safe-action";
 import { formSchemas, types } from "@/lib/types";
+import { redirect } from "next/navigation";
 
 export const createGame = createSafeAction.inputSchema(formSchemas.createGame).action(async ({ parsedInput }) => {
   console.log("Creating game with responses");
@@ -23,6 +25,7 @@ RÈGLES ABSOLUES DE SORTIE :
 Structure JSON attendue :
 {
   "mainCharacterPrompt": string,
+  "petPrompt": string,
   "backgroundPrompt": string,
   "weapon": {
     "prompt": string,
@@ -40,13 +43,14 @@ Tous les prompts doivent inclure ces mots-clés pour garantir une cohérence vis
 
 RÈGLES SPÉCIFIQUES PAR ASSET :
 
-1. LES SPRITES (Personnage, Arme, Projectile, Monstres, Boss) :
+1. LES SPRITES (Personnage, Pet, Arme, Projectile, Monstres, Boss) :
    * CRUCIAL : Ils doivent être impérativement sur un FOND BLANC PUR ("isolated on pure white background").
    * CRUCIAL : UN SEUL ÉLÉMENT PAR IMAGE. Pas de groupes, pas de multiples ("single isolated subject").
    * CRUCIAL : Aucun élément parasite, pas d'ombre portée, pas de poussière.
    * Si le joueur mentionne un univers connu (ex: Mario, Star Wars), décris précisément les éléments visuels iconiques de cet univers.
 
    * **mainCharacterPrompt** : Décris le héros. Il doit regarder vers la DROITE. Ajoute : ", single character only, full body, side profile looking to the right, isolated on pure white background, clean edges".
+   * **petPrompt** : Décris le compagnon/animal de compagnie. Il doit regarder vers la DROITE. Ajoute : ", single pet sprite only, full body, side profile looking to the right, isolated on pure white background".
    * **weapon.prompt** : Décris l'arme. Elle doit pointer vers la DROITE. Ajoute : ", single weapon only, side view pointing to the right, isolated on pure white background".
    * **weapon.projectilePrompt** (si type='ranged') : Décris le projectile. Il doit aller de la GAUCHE vers la DROITE. Ajoute : ", single projectile only, flying from left to right, horizontal orientation, isolated on pure white background".
    * **monstersPrompt** : Décris un ennemi type. Il doit regarder vers la GAUCHE. Ajoute : ", single monster only, full body, side profile looking to the left, isolated on pure white background".
@@ -54,16 +58,16 @@ RÈGLES SPÉCIFIQUES PAR ASSET :
 
 2. LES ENVIRONNEMENTS (Fond, Sol) :
    * NE DOIVENT PAS être sur fond blanc. Ils doivent remplir toute l'image.
-   * **backgroundPrompt** : Décris le paysage. Ajoute : ", seamless horizontal background, no characters, highly detailed scenery, fills the entire frame".
-   * **groundPrompt** : Décris une tuile de sol en vue de coupe (ex: herbe dessus, terre dessous). Ajoute : ", seamless repeating texture tile, cross-section view, flat top surface, fills the whole image frame, no white background".
+   * **backgroundPrompt** : Décris le paysage en arrière-plan. Ajoute : ", seamless horizontal background, no characters, highly detailed scenery, fills the entire frame".
+   * **groundPrompt** : Décris une TEXTURE de sol en coupe transversale stricte (ex: herbe uniquement sur la ligne du haut, terre/roche remplissant tout le reste de l'image dessous). Il ne doit y avoir aucun ciel ni vide. Ajoute : ", full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame".
 
 LOGIQUE DE REMPLISSAGE :
 * Weapon Type : 'melee' (corps à corps) ou 'ranged' (distance).
-* Si le joueur ne répond pas à une question (sauf le cauchemar), utilise ton imagination pour combler le vide de manière cohérente avec le thème.
+* Si le joueur ne répond pas à une question (sauf le cauchemar), utilise ton imagination pour combler le vide de manière cohérente avec le thème (ex: invente un pet si non spécifié).
 * Ne fais jamais référence au fait que "le joueur a dit". Décris directement l'objet visuel.
 
 Exemple de réponse (JSON BRUT uniquement) :
-{"mainCharacterPrompt": "Cyborg ninja with glowing red eye, detailed pixel art, high-end 32-bit style, single character only, full body, side profile looking to the right, isolated on pure white background, clean edges", "bossPrompt": "Giant spider with metal legs representing arachnophobia, detailed pixel art, high-end 32-bit style, single massive boss sprite only, side profile looking to the left, isolated on pure white background", ...}`,
+{"mainCharacterPrompt": "Cyborg ninja with glowing red eye, detailed pixel art, high-end 32-bit style, single character only, full body, side profile looking to the right, isolated on pure white background, clean edges", "petPrompt": "Small robotic hovering drone, detailed pixel art, high-end 32-bit style, single pet sprite only, side profile looking to the right, isolated on pure white background", "groundPrompt": "Green grass on top with dark brown dirt and roots underneath, detailed pixel art, high-end 32-bit style, full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame", ...}`,
       },
       {
         role: "user",
@@ -77,14 +81,14 @@ Exemple de réponse (JSON BRUT uniquement) :
   const parsedResponse = types.prompts.safeParse(JSON.parse(completion.choices[0].message.content || "{}"));
 
   if (!parsedResponse.success) {
-    throw new Error("Failed to parse OpenAI response: " + JSON.stringify(parsedResponse.error.format()));
+    throw new Error("Failed to parse OpenAI response: " + parsedResponse.error.message + " | Response was: " + completion.choices[0].message.content);
   }
 
   console.log(`Voici les questions posées au joueur : ${JSON.stringify(questions)}.
         Voici les réponses du joueur au questionnaire : ${JSON.stringify(parsedInput.responses)}.`);
   console.log(parsedResponse.data);
 
-  const [mainCharacter, background, weapon, projectile, monsters, boss, ground] = await Promise.all([
+  const [mainCharacter, background, weapon, projectile, monsters, boss, ground, pet] = await Promise.all([
     generateImage(parsedResponse.data.mainCharacterPrompt, 512, 512, true),
     generateImage(parsedResponse.data.backgroundPrompt, 1024, 512),
     generateImage(parsedResponse.data.weapon.prompt, 512, 512, true),
@@ -94,19 +98,21 @@ Exemple de réponse (JSON BRUT uniquement) :
     generateImage(parsedResponse.data.monstersPrompt, 512, 512, true),
     generateImage(parsedResponse.data.bossPrompt, 512, 512, true),
     generateImage(parsedResponse.data.groundPrompt, 1024, 256),
+    generateImage(parsedResponse.data.petTrigger, 512, 512, true),
   ]);
 
-  // push to prisma
+  const game = await prisma.game.create({
+    data: {
+      mainCharacterImageUrl: mainCharacter,
+      backgroundImageUrl: background,
+      weaponImageUrl: weapon,
+      projectileImageUrl: projectile,
+      monstersImageUrl: monsters,
+      bossImageUrl: boss,
+      groundImageUrl: ground,
+      petImageUrl: pet,
+    },
+  });
 
-  const assets = {
-    mainCharacter,
-    background,
-    weapon,
-    projectile,
-    monsters,
-    boss,
-    ground,
-  };
-
-  return { assets, prompts: parsedResponse.data };
+  redirect(`/game/${game.id}`);
 });

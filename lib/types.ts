@@ -17,6 +17,7 @@ export const types = {
   prompts: z.object({
     mainCharacterPrompt: z.string(),
     backgroundPrompt: z.string(),
+    petTrigger: z.string(),
     weapon: z.discriminatedUnion("type", [
       z.object({
         type: z.literal("melee"),
