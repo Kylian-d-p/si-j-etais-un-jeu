@@ -2,6 +2,7 @@
 
 import { generateImage } from "@/lib/comfyui";
 import { openai } from "@/lib/openai";
+import { questions } from "@/lib/questions";
 import { createSafeAction } from "@/lib/safe-action";
 import { formSchemas, types } from "@/lib/types";
 
@@ -11,14 +12,15 @@ export const createGame = createSafeAction.inputSchema(formSchemas.createGame).a
     messages: [
       {
         role: "system",
-        content: `Tu agis comme un Directeur Artistique Senior pour un jeu vidéo rétro-moderne. Ta mission est de transformer les réponses d'un joueur en prompts techniques pour une IA génératrice d'images (type Midjourney/DALL-E).
+        content: `Tu agis en tant que Directeur Artistique Expert pour la création d'assets de jeux vidéo. Ton rôle est d'analyser les réponses d'un joueur à un questionnaire pour générer des prompts de génération d'images ultra-précis.
 
-RÈGLE ABSOLUE DE FORMAT :
-Tu dois répondre UNIQUEMENT par une chaîne de caractères JSON brute.
-INTERDICTION d'utiliser des balises de code (\`\`\`json ou \`\`\`).
-INTERDICTION d'écrire du texte avant ou après le JSON.
+RÈGLES ABSOLUES DE SORTIE :
+1. Tu dois répondre UNIQUEMENT par un JSON brut.
+2. INTERDICTION d'utiliser des balises de bloc de code (pas de \`\`\`json, pas de \`\`\`).
+3. INTERDICTION d'ajouter du texte d'introduction ou de conclusion.
+4. Le JSON doit être valide et parsable immédiatement.
 
-Format attendu :
+Structure JSON attendue :
 {
   "mainCharacterPrompt": string,
   "backgroundPrompt": string,
@@ -32,35 +34,40 @@ Format attendu :
   "groundPrompt": string
 }
 
-DIRECTIVES ARTISTIQUES (COHÉRENCE) :
-Pour garantir que tous les éléments appartiennent au même jeu, tu dois injecter les mots-clés de style suivants DANS CHAQUE PROMPT généré :
-"high-end detailed pixel art, 32-bit style, vibrant colors, sharp focus, professional game asset"
+DIRECTIVES DE STYLE (MASTER STYLE) :
+Tous les prompts doivent inclure ces mots-clés pour garantir une cohérence visuelle :
+"detailed pixel art, high-end 32-bit style, vibrant colors, sharp focus, professional game asset"
 
-RÈGLES DE CONTENU SPÉCIFIQUES :
+RÈGLES SPÉCIFIQUES PAR ASSET :
 
-1.  **ENTITÉS (Personnage, Monstres, Boss, Arme)** :
-    * Doivent être sur fond blanc pour le détourage.
-    * Si le joueur cite un univers connu (ex: Star Wars, Zelda), tu DOIS décrire visuellement les traits caractéristiques de cet univers.
-    * **mainCharacterPrompt** : Description du héros + ", full body, side profile facing right, isolated on white background".
-    * **weapon.prompt** : Description de l'arme + ", weapon sprite, side view facing right, isolated on white background".
-    * **monstersPrompt** : Description des ennemis + ", full body, side profile facing left, isolated on white background".
-    * **bossPrompt** : Description du boss + ", massive boss sprite, full body, side profile facing left, isolated on white background".
+1. LES SPRITES (Personnage, Arme, Projectile, Monstres, Boss) :
+   * CRUCIAL : Ils doivent être impérativement sur un FOND BLANC PUR ("isolated on pure white background").
+   * CRUCIAL : UN SEUL ÉLÉMENT PAR IMAGE. Pas de groupes, pas de multiples ("single isolated subject").
+   * CRUCIAL : Aucun élément parasite, pas d'ombre portée, pas de poussière.
+   * Si le joueur mentionne un univers connu (ex: Mario, Star Wars), décris précisément les éléments visuels iconiques de cet univers.
 
-2.  **ENVIRONNEMENT (Fond, Sol)** :
-    * NE DOIVENT PAS être sur fond blanc. Ils doivent remplir l'image.
-    * **backgroundPrompt** : Description du paysage/ambiance. Doit être immersif et sans personnages. Ajoute : ", seamless horizontal background for side-scrolling game, no characters, highly detailed scenery".
-    * **groundPrompt** : Description de la texture du sol en vue de coupe (herbe/pierre dessus, terre dessous). Ajoute : ", seamless repeating texture tile, cross-section view, flat top edge, fills the whole image frame".
+   * **mainCharacterPrompt** : Décris le héros. Il doit regarder vers la DROITE. Ajoute : ", single character only, full body, side profile looking to the right, isolated on pure white background, clean edges".
+   * **weapon.prompt** : Décris l'arme. Elle doit pointer vers la DROITE. Ajoute : ", single weapon only, side view pointing to the right, isolated on pure white background".
+   * **weapon.projectilePrompt** (si type='ranged') : Décris le projectile. Il doit aller de la GAUCHE vers la DROITE. Ajoute : ", single projectile only, flying from left to right, horizontal orientation, isolated on pure white background".
+   * **monstersPrompt** : Décris un ennemi type. Il doit regarder vers la GAUCHE. Ajoute : ", single monster only, full body, side profile looking to the left, isolated on pure white background".
+   * **bossPrompt** : Utilise spécifiquement la réponse du joueur concernant son "pire cauchemar" pour concevoir ce boss. Transforme cette peur en un monstre tangible qui regarde vers la GAUCHE. Ajoute : ", single massive boss sprite only, full body, side profile looking to the left, isolated on pure white background".
 
-3.  **LOGIQUE** :
-    * Weapon Type : 'melee' ou 'ranged'. Si 'ranged', remplir 'projectilePrompt' (ex: "pixel art plasma bolt, isolated on white background").
-    * Si réponse vide : Invente un concept cohérent avec le reste des réponses.
+2. LES ENVIRONNEMENTS (Fond, Sol) :
+   * NE DOIVENT PAS être sur fond blanc. Ils doivent remplir toute l'image.
+   * **backgroundPrompt** : Décris le paysage. Ajoute : ", seamless horizontal background, no characters, highly detailed scenery, fills the entire frame".
+   * **groundPrompt** : Décris une tuile de sol en vue de coupe (ex: herbe dessus, terre dessous). Ajoute : ", seamless repeating texture tile, cross-section view, flat top surface, fills the whole image frame, no white background".
 
-Exemple de structure de réponse (JSON BRUT uniquement) :
-{"mainCharacterPrompt": "Cyberpunk knight with neon helmet, high-end detailed pixel art, 32-bit style, full body, side profile facing right, isolated on white background", "backgroundPrompt": "Futuristic neon city skyline at night, high-end detailed pixel art, 32-bit style, seamless horizontal background...", ...}`,
+LOGIQUE DE REMPLISSAGE :
+* Weapon Type : 'melee' (corps à corps) ou 'ranged' (distance).
+* Si le joueur ne répond pas à une question (sauf le cauchemar), utilise ton imagination pour combler le vide de manière cohérente avec le thème.
+* Ne fais jamais référence au fait que "le joueur a dit". Décris directement l'objet visuel.
+
+Exemple de réponse (JSON BRUT uniquement) :
+{"mainCharacterPrompt": "Cyborg ninja with glowing red eye, detailed pixel art, high-end 32-bit style, single character only, full body, side profile looking to the right, isolated on pure white background, clean edges", "bossPrompt": "Giant spider with metal legs representing arachnophobia, detailed pixel art, high-end 32-bit style, single massive boss sprite only, side profile looking to the left, isolated on pure white background", ...}`,
       },
       {
         role: "user",
-        content: `Voici les questions posées au joueur : ${JSON.stringify(types.questions)}.
+        content: `Voici les questions posées au joueur : ${JSON.stringify(questions.map((question) => question.label))}.
         Voici les réponses du joueur au questionnaire : ${JSON.stringify(parsedInput.responses)}.`,
       },
     ],
@@ -73,6 +80,10 @@ Exemple de structure de réponse (JSON BRUT uniquement) :
     throw new Error("Failed to parse OpenAI response: " + JSON.stringify(parsedResponse.error.format()));
   }
 
+  console.log(`Voici les questions posées au joueur : ${JSON.stringify(questions)}.
+        Voici les réponses du joueur au questionnaire : ${JSON.stringify(parsedInput.responses)}.`);
+  console.log(parsedResponse.data);
+
   const [mainCharacter, background, weapon, projectile, monsters, boss, ground] = await Promise.all([
     generateImage(parsedResponse.data.mainCharacterPrompt, 512, 512, true),
     generateImage(parsedResponse.data.backgroundPrompt, 1024, 512),
@@ -84,6 +95,8 @@ Exemple de structure de réponse (JSON BRUT uniquement) :
     generateImage(parsedResponse.data.bossPrompt, 512, 512, true),
     generateImage(parsedResponse.data.groundPrompt, 1024, 256),
   ]);
+
+  // push to prisma
 
   const assets = {
     mainCharacter,

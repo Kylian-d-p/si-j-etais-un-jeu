@@ -10,8 +10,8 @@ import { createGame } from "./create-game";
 export default function Home() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
-
-  const responses: string[] = [];
+  const [response, setResponse] = useState<string | null>(null);
+  const [responses, setResponses] = useState<(string | undefined)[]>(questions.map(() => undefined));
 
   return (
     <main>
@@ -26,7 +26,7 @@ export default function Home() {
           <h2 className="font-bold text-3xl">Question {activeQuestionIndex + 1} :</h2>
           <p>{questions[activeQuestionIndex].label}</p>
           {questions[activeQuestionIndex].responseType === "free" ? (
-            <Textarea className="border p-2 rounded-md min-h-[100px]" />
+            <Textarea className="border p-2 rounded-md min-h-[100px]" value={response || ""} onChange={(e) => setResponse(e.target.value)} />
           ) : (
             <div className="flex flex-col gap-3">
               {questions[activeQuestionIndex].choices.map((choice) => (
@@ -45,10 +45,16 @@ export default function Home() {
             <Button
               onClick={async () => {
                 if (activeQuestionIndex < questions.length - 1) {
+                  setResponses((prev) => {
+                    const newResponses = [...prev];
+                    newResponses[activeQuestionIndex] = response || undefined;
+                    return newResponses;
+                  });
+                  setResponse(responses[activeQuestionIndex] || null);
                   setActiveQuestionIndex(activeQuestionIndex + 1);
                 } else {
                   setLoading(true);
-                  const res = await createGame({ responses });
+                  const res = await createGame({ responses: responses.map((r) => r || "") });
                   setLoading(false);
 
                   if (!res.data) {
