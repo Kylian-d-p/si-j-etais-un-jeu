@@ -15,9 +15,9 @@ export const types = {
     ])
   ),
   prompts: z.object({
-    mainCharacterPrompt: z.string(),
-    backgroundPrompt: z.string(),
-    petTrigger: z.string(),
+    mainCharacter: z.string(),
+    background: z.string(),
+    pet: z.string(),
     weapon: z.discriminatedUnion("type", [
       z.object({
         type: z.literal("melee"),
@@ -26,12 +26,12 @@ export const types = {
       z.object({
         type: z.literal("ranged"),
         prompt: z.string(),
-        projectilePrompt: z.string(),
+        projectile: z.string(),
       }),
     ]),
-    monstersPrompt: z.string(),
-    bossPrompt: z.string(),
-    groundPrompt: z.string(),
+    monsters: z.string(),
+    boss: z.string(),
+    ground: z.string(),
   }),
 };
 

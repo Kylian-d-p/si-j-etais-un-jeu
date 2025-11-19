@@ -10,17 +10,10 @@ import { createGame } from "./create-game";
 export default function Home() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
   const [responses, setResponses] = useState<(string | undefined)[]>(questions.map(() => undefined));
 
   const nextQuestion = async () => {
     if (activeQuestionIndex < questions.length - 1) {
-      setResponses((prev) => {
-        const newResponses = [...prev];
-        newResponses[activeQuestionIndex] = response || undefined;
-        return newResponses;
-      });
-      setResponse(responses[activeQuestionIndex] || null);
       setActiveQuestionIndex(activeQuestionIndex + 1);
     } else {
       setLoading(true);
@@ -54,8 +47,14 @@ export default function Home() {
                 }
               }}
               className="border p-2 rounded-md min-h-[100px]"
-              value={response || ""}
-              onChange={(e) => setResponse(e.target.value)}
+              value={responses[activeQuestionIndex] || ""}
+              onChange={(e) =>
+                setResponses((prev) => {
+                  const newResponses = [...prev];
+                  newResponses[activeQuestionIndex] = e.target.value;
+                  return newResponses;
+                })
+              }
             />
           ) : (
             <div className="flex flex-col gap-3">

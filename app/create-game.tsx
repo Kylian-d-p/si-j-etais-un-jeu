@@ -24,17 +24,17 @@ RÈGLES ABSOLUES DE SORTIE :
 
 Structure JSON attendue :
 {
-  "mainCharacterPrompt": string,
-  "petTrigger": string,
-  "backgroundPrompt": string,
+  "mainCharacter": string,
+  "pet": string,
+  "background": string,
   "weapon": {
     "prompt": string,
     "type": "melee" | "ranged",
-    "projectilePrompt": string (optionnel)
+    "projectile": string (optionnel)
   },
-  "monstersPrompt": string,
-  "bossPrompt": string,
-  "groundPrompt": string
+  "monsters": string,
+  "boss": string,
+  "ground": string
 }
 
 DIRECTIVES DE STYLE (MASTER STYLE) :
@@ -49,17 +49,17 @@ RÈGLES SPÉCIFIQUES PAR ASSET :
    * CRUCIAL : Aucun élément parasite, pas d'ombre portée, pas de poussière.
    * Si le joueur mentionne un univers connu (ex: Mario, Star Wars), décris précisément les éléments visuels iconiques de cet univers.
 
-   * **mainCharacterPrompt** : Décris le héros. Il doit regarder vers la DROITE. Ajoute : ", single character only, full body, side profile looking to the right, isolated on pure white background, clean edges".
-   * **petTrigger** : Décris le compagnon/animal de compagnie. Il doit regarder vers la DROITE. Ajoute : ", single pet sprite only, full body, side profile looking to the right, isolated on pure white background".
+   * **mainCharacter** : Décris le héros. Il doit regarder vers la DROITE. Ajoute : ", single character only, full body, side profile looking to the right, isolated on pure white background, clean edges".
+   * **pet** : Décris le compagnon/animal de compagnie. Il doit regarder vers la DROITE. Ajoute : ", single pet sprite only, full body, side profile looking to the right, isolated on pure white background".
    * **weapon.prompt** : Décris l'arme. Elle doit pointer vers la DROITE. Ajoute : ", single weapon only, side view pointing to the right, isolated on pure white background".
-   * **weapon.projectilePrompt** (si type='ranged') : Décris le projectile. Il doit aller de la GAUCHE vers la DROITE. Ajoute : ", single projectile only, flying from left to right, horizontal orientation, isolated on pure white background".
-   * **monstersPrompt** : Décris un ennemi type. Il doit regarder vers la GAUCHE. Ajoute : ", single monster only, full body, side profile looking to the left, isolated on pure white background".
-   * **bossPrompt** : Utilise spécifiquement la réponse du joueur concernant son "pire cauchemar" pour concevoir ce boss. Transforme cette peur en un monstre tangible qui regarde vers la GAUCHE. Ajoute : ", single massive boss sprite only, full body, side profile looking to the left, isolated on pure white background".
+   * **weapon.projectile** (si type='ranged') : Décris le projectile. Il doit aller de la GAUCHE vers la DROITE. Ajoute : ", single projectile only, flying from left to right, horizontal orientation, isolated on pure white background".
+   * **monsters** : Décris un ennemi type. Il doit regarder vers la GAUCHE. Ajoute : ", single monster only, full body, side profile looking to the left, isolated on pure white background".
+   * **boss** : Utilise spécifiquement la réponse du joueur concernant son "pire cauchemar" pour concevoir ce boss. Transforme cette peur en un monstre tangible qui regarde vers la GAUCHE. Ajoute : ", single massive boss sprite only, full body, side profile looking to the left, isolated on pure white background".
 
 2. LES ENVIRONNEMENTS (Fond, Sol) :
    * NE DOIVENT PAS être sur fond blanc. Ils doivent remplir toute l'image.
-   * **backgroundPrompt** : Décris le paysage en arrière-plan. Ajoute : ", seamless horizontal background, no characters, highly detailed scenery, fills the entire frame".
-   * **groundPrompt** : Décris une TEXTURE de sol en coupe transversale stricte (ex: herbe uniquement sur la ligne du haut, terre/roche remplissant tout le reste de l'image dessous). Il ne doit y avoir aucun ciel ni vide. Ajoute : ", full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame".
+   * **background** : Décris le paysage en arrière-plan. Ajoute : ", seamless horizontal background, no characters, highly detailed scenery, fills the entire frame".
+   * **ground** : Décris une TEXTURE de sol en coupe transversale stricte (ex: herbe uniquement sur la ligne du haut, terre/roche remplissant tout le reste de l'image dessous). Il ne doit y avoir aucun ciel ni vide. Ajoute : ", full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame".
 
 LOGIQUE DE REMPLISSAGE :
 * Weapon Type : 'melee' (corps à corps) ou 'ranged' (distance).
@@ -67,7 +67,7 @@ LOGIQUE DE REMPLISSAGE :
 * Ne fais jamais référence au fait que "le joueur a dit". Décris directement l'objet visuel.
 
 Exemple de réponse (JSON BRUT uniquement) :
-{"mainCharacterPrompt": "Cyborg ninja with glowing red eye, detailed pixel art, high-end 32-bit style, single character only, full body, side profile looking to the right, isolated on pure white background, clean edges", "petTrigger": "Small robotic hovering drone, detailed pixel art, high-end 32-bit style, single pet sprite only, side profile looking to the right, isolated on pure white background", "groundPrompt": "Green grass on top with dark brown dirt and roots underneath, detailed pixel art, high-end 32-bit style, full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame", ...}`,
+{"mainCharacterPrompt": "Cyborg ninja with glowing red eye, detailed pixel art, high-end 32-bit style, single character only, full body, side profile looking to the right, isolated on pure white background, clean edges", "pet": "Small robotic hovering drone, detailed pixel art, high-end 32-bit style, single pet sprite only, side profile looking to the right, isolated on pure white background", "groundPrompt": "Green grass on top with dark brown dirt and roots underneath, detailed pixel art, high-end 32-bit style, full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame", ...}`,
       },
       {
         role: "user",
@@ -89,16 +89,16 @@ Exemple de réponse (JSON BRUT uniquement) :
   console.log(parsedResponse.data);
 
   const [mainCharacter, background, weapon, projectile, monsters, boss, ground, pet] = await Promise.all([
-    generateImage(parsedResponse.data.mainCharacterPrompt, 512, 512, true),
-    generateImage(parsedResponse.data.backgroundPrompt, 1024, 512),
+    generateImage(parsedResponse.data.mainCharacter, 512, 512, true),
+    generateImage(parsedResponse.data.background, 1024, 512),
     generateImage(parsedResponse.data.weapon.prompt, 512, 512, true),
     parsedResponse.data.weapon.type === "ranged"
-      ? generateImage(parsedResponse.data.weapon.projectilePrompt || "", 512, 512, true)
+      ? generateImage(parsedResponse.data.weapon.projectile || "", 512, 512, true)
       : Promise.resolve(undefined),
-    generateImage(parsedResponse.data.monstersPrompt, 512, 512, true),
-    generateImage(parsedResponse.data.bossPrompt, 512, 512, true),
-    generateImage(parsedResponse.data.groundPrompt, 1024, 256),
-    generateImage(parsedResponse.data.petTrigger, 512, 512, true),
+    generateImage(parsedResponse.data.monsters, 512, 512, true),
+    generateImage(parsedResponse.data.boss, 512, 512, true),
+    generateImage(parsedResponse.data.ground, 1024, 256),
+    generateImage(parsedResponse.data.pet, 512, 512, true),
   ]);
 
   const game = await prisma.game.create({
