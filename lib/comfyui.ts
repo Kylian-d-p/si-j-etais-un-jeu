@@ -3,7 +3,7 @@ import { env } from "./env";
 // Définition du Workflow (constante pour éviter de recréer l'objet à chaque fois)
 const WORKFLOW_BASE = {
   "13": {
-    inputs: { ckpt_name: "DreamShaper_8_pruned.safetensors" },
+    inputs: { ckpt_name: "pixelArtDiffusionXL.safetensors" },
     class_type: "CheckpointLoaderSimple",
   },
   "14": {
@@ -42,7 +42,7 @@ const WORKFLOW_BASE = {
     class_type: "SaveImage",
   },
   "20": {
-    inputs: { width: 512, height: 512, batch_size: 1 },
+    inputs: { width: 1024, height: 1024, batch_size: 1 },
     class_type: "EmptyLatentImage",
   },
   "21": {
@@ -54,11 +54,11 @@ const WORKFLOW_BASE = {
 /**
  * Génère une image via ComfyUI avec gestion des dimensions.
  * @param prompt La description de l'image
- * @param width Largeur (défaut: 512)
- * @param height Hauteur (défaut: 512)
+ * @param width Largeur (défaut: 1024)
+ * @param height Hauteur (défaut: 1024)
  * @param transparent Si vrai, active le détourage
  */
-export async function generateImage(prompt: string, width: number = 512, height: number = 512, transparent: boolean = false): Promise<string> {
+export async function generateImage(prompt: string, width: number = 1024, height: number = 1024, transparent: boolean = false): Promise<string> {
   if (!prompt) throw new Error("Le prompt est vide");
 
   // 1. Copie profonde du workflow pour ne pas modifier l'original

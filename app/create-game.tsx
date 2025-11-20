@@ -89,16 +89,16 @@ Exemple de réponse (JSON BRUT uniquement) :
   console.log(parsedResponse.data);
 
   const [mainCharacter, background, weapon, projectile, monsters, boss, ground, pet] = await Promise.all([
-    generateImage(parsedResponse.data.mainCharacter, 512, 512, true),
-    generateImage(parsedResponse.data.background, 1024, 512),
-    generateImage(parsedResponse.data.weapon.prompt, 512, 512, true),
+    generateImage(parsedResponse.data.mainCharacter, 1024, 1024, true),
+    generateImage(parsedResponse.data.background, 2048, 1024),
+    generateImage(parsedResponse.data.weapon.prompt, 1024, 1024, true),
     parsedResponse.data.weapon.type === "ranged"
-      ? generateImage(parsedResponse.data.weapon.projectile || "", 512, 512, true)
+      ? generateImage(parsedResponse.data.weapon.projectile || "", 1024, 1024, true)
       : Promise.resolve(undefined),
-    generateImage(parsedResponse.data.monsters, 512, 512, true),
-    generateImage(parsedResponse.data.boss, 512, 512, true),
-    generateImage(parsedResponse.data.ground, 1024, 256),
-    generateImage(parsedResponse.data.pet, 512, 512, true),
+    generateImage(parsedResponse.data.monsters, 1024, 1024, true),
+    generateImage(parsedResponse.data.boss, 1024, 1024, true),
+    generateImage(parsedResponse.data.ground, 2048, 1024),
+    generateImage(parsedResponse.data.pet, 1024, 1024, true),
   ]);
 
   const game = await prisma.game.create({
