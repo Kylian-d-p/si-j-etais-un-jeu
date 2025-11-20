@@ -51,9 +51,19 @@ export default function Game(props: {
   };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<"playing" | "wave-complete" | "pet-intro" | "boss-intro" | "victory" | "game-over">("playing");
+  const [gameState, setGameState] = useState<
+    | "playing"
+    | "wave-complete"
+    | "pet-intro"
+    | "boss-intro"
+    | "victory"
+    | "game-over"
+  >("playing");
   const [currentWave, setCurrentWave] = useState(1);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  // Détecter si le joueur est en mode mêlée (pas d'attaque à distance disponible)
+  const isMelee = !props.game.projectileImageUrl;
 
   const gameStateRef = useRef({
     player: {
@@ -63,8 +73,9 @@ export default function Game(props: {
       height: 75,
       velocityX: 0,
       velocityY: 0,
-      health: 100,
-      maxHealth: 100,
+      // Si le joueur est mêlée, lui donner plus de points de vie
+      health: isMelee ? 150 : 100,
+      maxHealth: isMelee ? 150 : 100,
       hitCooldown: 0,
       isOnGround: false,
       isCrouching: false,
@@ -108,14 +119,16 @@ export default function Game(props: {
       loadImage(props.game.mainCharacterImageUrl),
       loadImage(props.game.backgroundImageUrl),
       loadImage(props.game.weaponImageUrl),
-      props.game.projectileImageUrl ? loadImage(props.game.projectileImageUrl) : Promise.resolve(null),
+      props.game.projectileImageUrl
+        ? loadImage(props.game.projectileImageUrl)
+        : Promise.resolve(null),
       loadImage(props.game.monstersImageUrl),
       loadImage(props.game.bossImageUrl),
       loadImage(props.game.groundImageUrl),
       loadImage(props.game.petImageUrl),
     ])
-      .then(([player, background, weapon, projectile, monster, boss, ground, pet]) => {
-        imagesRef.current = {
+      .then(
+        ([
           player,
           background,
           weapon,
@@ -124,9 +137,20 @@ export default function Game(props: {
           boss,
           ground,
           pet,
-        };
-        setImagesLoaded(true);
-      })
+        ]) => {
+          imagesRef.current = {
+            player,
+            background,
+            weapon,
+            projectile,
+            monster,
+            boss,
+            ground,
+            pet,
+          };
+          setImagesLoaded(true);
+        }
+      )
       .catch((error) => {
         console.error("Erreur lors du chargement des images:", error);
       });
@@ -138,12 +162,17 @@ export default function Game(props: {
       gameStateRef.current.keys[e.key.toLowerCase()] = true;
 
       // Cheat code: N pour passer à la vague suivante
-      if (e.key.toLowerCase() === "n" && gameStateRef.current.state === "playing") {
+      if (
+        e.key.toLowerCase() === "n" &&
+        gameStateRef.current.state === "playing"
+      ) {
         if (gameStateRef.current.wave < 3) {
           // Passer à la vague suivante
           gameStateRef.current.monsters = [];
           gameStateRef.current.projectiles = [];
           gameStateRef.current.wave++;
+          // Soigner le joueur après la vague
+          healAfterWave();
           gameStateRef.current.state = "wave-complete";
           setGameState("wave-complete");
           setCurrentWave(gameStateRef.current.wave);
@@ -162,6 +191,8 @@ export default function Game(props: {
             targetX: gameStateRef.current.player.x - 80,
             targetY: GROUND_Y - 50,
           };
+          // Soigner le joueur après la vague finale
+          healAfterWave();
           gameStateRef.current.state = "pet-intro";
           setGameState("pet-intro");
         }
@@ -221,6 +252,13 @@ export default function Game(props: {
     };
   };
 
+  // Soigne le joueur après la fin d'une vague (ex: 25% des PV max)
+  const healAfterWave = () => {
+    const player = gameStateRef.current.player;
+    const healAmount = Math.ceil(player.maxHealth * 0.25);
+    player.health = Math.min(player.maxHealth, player.health + healAmount);
+  };
+
   // Initialiser le jeu
   useEffect(() => {
     if (imagesLoaded) {
@@ -242,9 +280,17 @@ export default function Game(props: {
     const CANVAS_HEIGHT = 600;
     const GROUND_Y = 480;
     const GRAVITY = 0.15;
+    const CROUCH_FALL_MULTIPLIER = 2.2; // Multiplicateur de gravité quand on s'accroupit en l'air
     const JUMP_FORCE = -8.5;
     const MOVE_SPEED = 3;
+    // Inertie / accélération du joueur
+    const ACCEL = 0.5; // accélération par unité de frameTime
+    const MAX_MOVE_SPEED = 4; // vitesse max atteignable en courant
+    const FRICTION = 0.7; // décélération lorsque aucune touche maintenue
     const ATTACK_RANGE = 60;
+    // Dégâts et PV du joueur selon son type (mêlée vs distance)
+    const MELEE_DAMAGE = isMelee ? 35 : 20;
+    const MELEE_BOSS_DAMAGE = isMelee ? 25 : 15;
 
     let animationFrameId: number;
     let lastTime = performance.now();
@@ -252,7 +298,12 @@ export default function Game(props: {
     const frameTime = 1000 / targetFPS;
 
     const checkCollision = (a: Entity, b: Entity): boolean => {
-      return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
     };
 
     const gameLoop = (currentTime: number) => {
@@ -266,7 +317,13 @@ export default function Game(props: {
 
       // Dessiner le fond
       if (imagesRef.current.background) {
-        ctx.drawImage(imagesRef.current.background, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.drawImage(
+          imagesRef.current.background,
+          0,
+          0,
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT
+        );
       }
 
       // Dessiner le sol
@@ -278,7 +335,13 @@ export default function Game(props: {
         // Dessiner le sol en le répétant si nécessaire pour couvrir toute la largeur
         let x = 0;
         while (x < CANVAS_WIDTH) {
-          ctx.drawImage(imagesRef.current.ground, x, GROUND_Y - 5, groundWidth, groundHeight);
+          ctx.drawImage(
+            imagesRef.current.ground,
+            x,
+            GROUND_Y - 5,
+            groundWidth,
+            groundHeight
+          );
           x += groundWidth;
         }
       }
@@ -293,7 +356,9 @@ export default function Game(props: {
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
           // Animation de tremblement intense
-          const shake = Math.sin(game.bossIntroProgress * 30) * (10 * game.bossIntroProgress);
+          const shake =
+            Math.sin(game.bossIntroProgress * 30) *
+            (10 * game.bossIntroProgress);
           const scale = 0.5 + game.bossIntroProgress * 1.5;
 
           // Éclairs rouges aléatoires
@@ -314,7 +379,13 @@ export default function Game(props: {
             const centerY = CANVAS_HEIGHT / 2 - (game.boss.height * scale) / 2;
 
             ctx.globalAlpha = game.bossIntroProgress;
-            ctx.drawImage(imagesRef.current.boss, centerX, centerY, game.boss.width * scale, game.boss.height * scale);
+            ctx.drawImage(
+              imagesRef.current.boss,
+              centerX,
+              centerY,
+              game.boss.width * scale,
+              game.boss.height * scale
+            );
           }
 
           ctx.restore();
@@ -352,15 +423,29 @@ export default function Game(props: {
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         if (imagesRef.current.pet) {
-          ctx.drawImage(imagesRef.current.pet, CANVAS_WIDTH / 2 - 50, CANVAS_HEIGHT / 2 - 50, 100, 100);
+          ctx.drawImage(
+            imagesRef.current.pet,
+            CANVAS_WIDTH / 2 - 50,
+            CANVAS_HEIGHT / 2 - 50,
+            100,
+            100
+          );
         }
 
         ctx.fillStyle = "white";
         ctx.font = "bold 30px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("Vous avez reçu un compagnon !", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 100);
+        ctx.fillText(
+          "Vous avez reçu un compagnon !",
+          CANVAS_WIDTH / 2,
+          CANVAS_HEIGHT / 2 + 100
+        );
         ctx.font = "20px Arial";
-        ctx.fillText("Appuyez sur Entrée pour continuer", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 140);
+        ctx.fillText(
+          "Appuyez sur Entrée pour continuer",
+          CANVAS_WIDTH / 2,
+          CANVAS_HEIGHT / 2 + 140
+        );
 
         if (game.keys["enter"]) {
           game.state = "boss-intro";
@@ -375,22 +460,40 @@ export default function Game(props: {
       // Mettre à jour le joueur
       const player = game.player;
 
-      // Contrôles
-      if (game.keys["q"] || game.keys["arrowleft"]) {
-        player.velocityX = -MOVE_SPEED;
-        player.direction = -1;
-      } else if (game.keys["d"] || game.keys["arrowright"]) {
-        player.velocityX = MOVE_SPEED;
-        player.direction = 1;
+      // Contrôles (avec inertie / accélération)
+      const inputLeft = !!game.keys["q"] || !!game.keys["arrowleft"];
+      const inputRight = !!game.keys["d"] || !!game.keys["arrowright"];
+      let inputDir = 0;
+      if (inputLeft) inputDir -= 1;
+      if (inputRight) inputDir += 1;
+
+      if (inputDir !== 0) {
+        // Accélérer vers la direction souhaitée
+        player.velocityX += inputDir * ACCEL * deltaTime;
+        // Clamp à la vitesse max
+        if (player.velocityX > MAX_MOVE_SPEED)
+          player.velocityX = MAX_MOVE_SPEED;
+        if (player.velocityX < -MAX_MOVE_SPEED)
+          player.velocityX = -MAX_MOVE_SPEED;
+        player.direction = inputDir > 0 ? 1 : -1;
       } else {
-        player.velocityX = 0;
+        // Appliquer friction/décélération lorsque aucune touche n'est pressée
+        if (Math.abs(player.velocityX) < 0.05) {
+          player.velocityX = 0;
+        } else {
+          player.velocityX -=
+            Math.sign(player.velocityX) * FRICTION * deltaTime;
+        }
       }
 
       // S'accroupir
       player.isCrouching = game.keys["s"] || game.keys["arrowdown"];
 
       // Sauter
-      if ((game.keys[" "] || game.keys["z"] || game.keys["arrowup"]) && player.isOnGround) {
+      if (
+        (game.keys[" "] || game.keys["z"] || game.keys["arrowup"]) &&
+        player.isOnGround
+      ) {
         player.velocityY = JUMP_FORCE;
         player.isOnGround = false;
       }
@@ -410,7 +513,8 @@ export default function Game(props: {
           });
         } else {
           // Attaque de mêlée
-          const attackX = player.x + (player.direction === 1 ? player.width : -ATTACK_RANGE);
+          const attackX =
+            player.x + (player.direction === 1 ? player.width : -ATTACK_RANGE);
           const attackBox = {
             x: attackX,
             y: player.y,
@@ -421,13 +525,13 @@ export default function Game(props: {
           // Toucher les monstres
           game.monsters.forEach((monster) => {
             if (checkCollision(attackBox as Entity, monster)) {
-              monster.health -= 20;
+              monster.health -= MELEE_DAMAGE;
             }
           });
 
           // Toucher le boss
           if (game.boss && checkCollision(attackBox as Entity, game.boss)) {
-            game.boss.health -= 15;
+            game.boss.health -= MELEE_BOSS_DAMAGE;
           }
         }
       }
@@ -436,7 +540,10 @@ export default function Game(props: {
       if (player.hitCooldown > 0) player.hitCooldown -= deltaTime;
 
       // Physique du joueur
-      player.velocityY += GRAVITY * deltaTime;
+      // Appliquer une gravité plus importante si le joueur s'accroupit en l'air
+      const gravityMultiplier =
+        player.isCrouching && !player.isOnGround ? CROUCH_FALL_MULTIPLIER : 1.5;
+      player.velocityY += GRAVITY * gravityMultiplier * deltaTime;
       player.x += player.velocityX * deltaTime;
       player.y += player.velocityY * deltaTime;
 
@@ -533,7 +640,22 @@ export default function Game(props: {
           const distanceToPlayer = player.x - game.boss.x;
 
           if (Math.abs(distanceToPlayer) > 10) {
-            game.boss.velocityX = distanceToPlayer > 0 ? 1.2 : -1.2;
+            // Augmente la vitesse du boss en fonction de la distance au joueur
+            const absDist = Math.abs(distanceToPlayer);
+            const MIN_DIST = 10;
+            const BASE_SPEED = 1.2;
+            const SPEED_FACTOR = 0.01; // vitesse additionnelle par pixel de distance
+            const MAX_SPEED = 2; // plafond de vitesse
+
+            if (absDist > MIN_DIST) {
+              const speed = Math.min(
+                BASE_SPEED + absDist * SPEED_FACTOR,
+                MAX_SPEED
+              );
+              game.boss.velocityX = distanceToPlayer > 0 ? speed : -speed;
+            } else {
+              game.boss.velocityX = 0;
+            }
           } else {
             game.boss.velocityX = 0;
           }
@@ -600,16 +722,24 @@ export default function Game(props: {
       }
 
       // Vérifier fin de vague
-      if (game.monsters.length === 0 && !game.boss && game.state === "playing") {
+      if (
+        game.monsters.length === 0 &&
+        !game.boss &&
+        game.state === "playing"
+      ) {
         if (game.wave < 3) {
           game.wave++;
           game.projectiles = []; // Supprimer tous les projectiles
+          // Soigner le joueur après la vague
+          healAfterWave();
           game.state = "wave-complete";
           setGameState("wave-complete");
           setCurrentWave(game.wave);
         } else {
           // Donner le pet avant le boss
           game.projectiles = []; // Supprimer tous les projectiles
+          // Soigner le joueur après la vague finale
+          healAfterWave();
           game.pet = {
             x: player.x - 80,
             y: GROUND_Y - 50,
@@ -634,7 +764,13 @@ export default function Game(props: {
       // Dessiner les projectiles
       game.projectiles.forEach((proj) => {
         if (imagesRef.current.projectile) {
-          ctx.drawImage(imagesRef.current.projectile, proj.x, proj.y, proj.width, proj.height);
+          ctx.drawImage(
+            imagesRef.current.projectile,
+            proj.x,
+            proj.y,
+            proj.width,
+            proj.height
+          );
         } else {
           ctx.fillStyle = "yellow";
           ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
@@ -647,9 +783,21 @@ export default function Game(props: {
           ctx.save();
           if (monster.direction === -1) {
             ctx.scale(-1, 1);
-            ctx.drawImage(imagesRef.current.monster, -monster.x - monster.width, monster.y, monster.width, monster.height);
+            ctx.drawImage(
+              imagesRef.current.monster,
+              -monster.x - monster.width,
+              monster.y,
+              monster.width,
+              monster.height
+            );
           } else {
-            ctx.drawImage(imagesRef.current.monster, monster.x, monster.y, monster.width, monster.height);
+            ctx.drawImage(
+              imagesRef.current.monster,
+              monster.x,
+              monster.y,
+              monster.width,
+              monster.height
+            );
           }
           ctx.restore();
         }
@@ -658,43 +806,88 @@ export default function Game(props: {
         ctx.fillStyle = "red";
         ctx.fillRect(monster.x, monster.y - 10, monster.width, 5);
         ctx.fillStyle = "green";
-        ctx.fillRect(monster.x, monster.y - 10, (monster.health / monster.maxHealth) * monster.width, 5);
+        ctx.fillRect(
+          monster.x,
+          monster.y - 10,
+          (monster.health / monster.maxHealth) * monster.width,
+          5
+        );
       });
 
       // Dessiner le boss
       if (game.boss && imagesRef.current.boss) {
-        ctx.drawImage(imagesRef.current.boss, game.boss.x, game.boss.y, game.boss.width, game.boss.height);
+        ctx.drawImage(
+          imagesRef.current.boss,
+          game.boss.x,
+          game.boss.y,
+          game.boss.width,
+          game.boss.height
+        );
 
         // Barre de vie du boss
         ctx.fillStyle = "darkred";
         ctx.fillRect(game.boss.x, game.boss.y - 15, game.boss.width, 8);
         ctx.fillStyle = "red";
-        ctx.fillRect(game.boss.x, game.boss.y - 15, (game.boss.health / game.boss.maxHealth) * game.boss.width, 8);
+        ctx.fillRect(
+          game.boss.x,
+          game.boss.y - 15,
+          (game.boss.health / game.boss.maxHealth) * game.boss.width,
+          8
+        );
       }
 
       // Dessiner le pet
       if (game.pet && imagesRef.current.pet) {
-        ctx.drawImage(imagesRef.current.pet, game.pet.x, game.pet.y, game.pet.width, game.pet.height);
+        ctx.drawImage(
+          imagesRef.current.pet,
+          game.pet.x,
+          game.pet.y,
+          game.pet.width,
+          game.pet.height
+        );
       }
 
       // Dessiner le joueur
       if (imagesRef.current.player) {
         ctx.save();
-        const playerHeight = player.isCrouching ? player.height * 0.7 : player.height;
-        const playerY = player.isCrouching ? player.y + player.height * 0.3 : player.y;
+        const playerHeight = player.isCrouching
+          ? player.height * 0.7
+          : player.height;
+        const playerY = player.isCrouching
+          ? player.y + player.height * 0.3
+          : player.y;
 
         if (player.direction === -1) {
           ctx.scale(-1, 1);
-          ctx.drawImage(imagesRef.current.player, -player.x - player.width, playerY, player.width, playerHeight);
+          ctx.drawImage(
+            imagesRef.current.player,
+            -player.x - player.width,
+            playerY,
+            player.width,
+            playerHeight
+          );
         } else {
-          ctx.drawImage(imagesRef.current.player, player.x, playerY, player.width, playerHeight);
+          ctx.drawImage(
+            imagesRef.current.player,
+            player.x,
+            playerY,
+            player.width,
+            playerHeight
+          );
         }
         ctx.restore();
 
         // Dessiner l'arme (toujours visible)
         if (imagesRef.current.weapon) {
-          const weaponX = player.x + (player.direction === 1 ? player.width : -40);
-          ctx.drawImage(imagesRef.current.weapon, weaponX, player.y + 25, 40, 40);
+          const weaponX =
+            player.x + (player.direction === 1 ? player.width : -40);
+          ctx.drawImage(
+            imagesRef.current.weapon,
+            weaponX,
+            player.y + 25,
+            40,
+            40
+          );
         }
       }
 
@@ -737,8 +930,8 @@ export default function Game(props: {
         height: 75,
         velocityX: 0,
         velocityY: 0,
-        health: 100,
-        maxHealth: 100,
+        health: isMelee ? 150 : 100,
+        maxHealth: isMelee ? 150 : 100,
         hitCooldown: 0,
         isOnGround: false,
         isCrouching: false,
@@ -786,13 +979,23 @@ export default function Game(props: {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="relative">
-        <canvas ref={canvasRef} width={1000} height={600} className="border-4 border-gray-700 rounded-lg" />
+        <canvas
+          ref={canvasRef}
+          width={1000}
+          height={600}
+          className="border-4 border-gray-700 rounded-lg"
+        />
 
         {gameState === "wave-complete" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
             <div className="text-center text-white">
-              <h2 className="text-4xl font-bold mb-4">Vague {currentWave - 1} terminée !</h2>
-              <button onClick={nextWave} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl">
+              <h2 className="text-4xl font-bold mb-4">
+                Vague {currentWave - 1} terminée !
+              </h2>
+              <button
+                onClick={nextWave}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl"
+              >
                 Vague suivante
               </button>
             </div>
@@ -802,9 +1005,14 @@ export default function Game(props: {
         {gameState === "victory" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
             <div className="text-center text-white">
-              <h2 className="text-5xl font-bold mb-4 text-yellow-400">🎉 VICTOIRE ! 🎉</h2>
+              <h2 className="text-5xl font-bold mb-4 text-yellow-400">
+                🎉 VICTOIRE ! 🎉
+              </h2>
               <p className="text-xl mb-6">Vous avez vaincu le boss final !</p>
-              <button onClick={restartGame} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-xl">
+              <button
+                onClick={restartGame}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-xl"
+              >
                 Rejouer
               </button>
             </div>
@@ -814,9 +1022,14 @@ export default function Game(props: {
         {gameState === "game-over" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
             <div className="text-center text-white">
-              <h2 className="text-5xl font-bold mb-4 text-red-500">GAME OVER</h2>
+              <h2 className="text-5xl font-bold mb-4 text-red-500">
+                GAME OVER
+              </h2>
               <p className="text-xl mb-6">Vous avez été vaincu...</p>
-              <button onClick={restartGame} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-xl">
+              <button
+                onClick={restartGame}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-xl"
+              >
                 Réessayer
               </button>
             </div>
@@ -832,7 +1045,9 @@ export default function Game(props: {
           <div>⬆️ Z ou Espace : Sauter</div>
           <div>⬇️ S ou Flèche Bas : S&apos;accroupir</div>
           <div>⚔️ E : Attaquer</div>
-          <div className="text-yellow-400">🎮 N : Passer à la vague suivante (Cheat)</div>
+          <div className="text-yellow-400">
+            🎮 N : Passer à la vague suivante (Cheat)
+          </div>
         </div>
       </div>
     </div>
