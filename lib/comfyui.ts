@@ -46,7 +46,10 @@ const WORKFLOW_BASE = {
     class_type: "EmptyLatentImage",
   },
   "21": {
-    inputs: { text: "text, watermark, ugly, bad hands", clip: ["13", 1] },
+    inputs: {
+      text: "blur, fuzzy, anti-aliasing, photographic, realistic, vector, svg, low quality, jpeg artifacts, cropped, out of frame, cut off, duplicate, multiple, army, crowd, extra limbs, deformed, glitch, shadow, drop shadow, text, watermark, signature, bad anatomy, disfigured, messy, noise, complex background, gradient",
+      clip: ["13", 1],
+    },
     class_type: "CLIPTextEncode",
   },
 };
