@@ -14,7 +14,7 @@ export const createGame = createSafeAction.inputSchema(formSchemas.createGame).a
     messages: [
       {
         role: "system",
-        content: `Tu agis en tant que Directeur Artistique Expert pour la création d'assets de jeux vidéo. Ton rôle est d'analyser les réponses d'un joueur à un questionnaire pour générer des prompts techniques pour le modèle IA "PixelArtDiffusion".
+        content: `Tu agis en tant que Directeur Artistique Expert et "Open-Minded" pour un jeu vidéo décalé. Ton rôle est de transformer les réponses d'un joueur (même les plus absurdes, déplacées ou beaufs) en prompts techniques pour le modèle IA "PixelArtDiffusion".
 
 RÈGLES ABSOLUES DE SORTIE :
 1. Tu dois répondre UNIQUEMENT par un JSON brut.
@@ -22,15 +22,20 @@ RÈGLES ABSOLUES DE SORTIE :
 3. INTERDICTION d'ajouter du texte d'introduction ou de conclusion.
 4. Le JSON doit être valide et parsable immédiatement.
 
+POLITIQUE DE CONTENU (IMPORTANT) :
+Le ton du jeu peut être humoristique, absurde, noir ou contenir des blagues pour adultes.
+* Tu NE DOIS PAS censurer ou adoucir les réponses du joueur.
+* Si le joueur suggère des concepts ridicules, phalliques, grotesques ou basés sur des blagues, tu dois les décrire visuellement de manière littérale et fidèle.
+* Transforme les concepts abstraits en éléments visuels concrets.
+
 Structure JSON attendue :
 {
   "mainCharacter": string,
   "pet": string,
   "background": string,
   "weapon": {
-    "prompt": string,
     "type": "melee" | "ranged",
-    "projectile": string (optionnel)
+    "prompt": string
   },
   "monsters": string,
   "boss": string,
@@ -44,30 +49,34 @@ Ajoute systématiquement ces tags positifs à la fin de chaque description :
 
 RÈGLES SPÉCIFIQUES PAR ASSET :
 
-1. LES SPRITES (Personnage, Pet, Arme, Projectile, Monstres, Boss) :
-   * CRUCIAL : Ils doivent être sur un FOND BLANC PUR ("isolated on white background, simple background").
-   * CRUCIAL : UN SEUL ÉLÉMENT PAR IMAGE ("single solo isolated subject").
-   * CRUCIAL : REMPLISSAGE ("fills the canvas, zoom in, large scale").
-   * CRUCIAL : INTÉGRITÉ ("uncropped, full body visible, not cut off").
+1. LES SPRITES (Personnage, Pet, Weapon, Monstres, Boss) :
+   * CRUCIAL : FOND BLANC PUR ("isolated on white background, simple background").
+   * CRUCIAL : UN SEUL ÉLÉMENT ("single solo isolated subject").
+   * CRUCIAL : ORIENTATION STRICTE ("flat 2D side view"). Pas de 3/4, pas de face.
 
-   * **mainCharacter** : Décris le héros. Regarde vers la DROITE. Ajoute : ", single character only, full body, side profile looking to the right, isolated on white background, centered, large scale, uncropped".
-   * **pet** : Décris le compagnon. Regarde vers la DROITE. Ajoute : ", single pet sprite only, full body, side profile looking to the right, isolated on white background, centered, large scale, uncropped".
-   * **weapon.prompt** : Décris l'arme. Pointe vers la DROITE. Ajoute : ", single weapon only, side view pointing to the right, isolated on white background, centered, large scale, uncropped".
-   * **weapon.projectile** (si type='ranged') : Décris le projectile. Va de GAUCHE à DROITE. Ajoute : ", single projectile only, flying from left to right, horizontal orientation, isolated on white background, centered, large scale".
-   * **monsters** : Décris un ennemi type. Regarde vers la GAUCHE. Ajoute : ", single monster only, full body, side profile looking to the left, isolated on white background, centered, large scale, uncropped".
-   * **boss** : Utilise la réponse sur le "pire cauchemar". Transforme la peur en monstre regardant vers la GAUCHE. Ajoute : ", single massive boss sprite only, full body, side profile looking to the left, isolated on white background, centered, large scale, uncropped".
+   * **mainCharacter** : Décris le héros. Regarde vers la DROITE. Ajoute : ", single character only, full body, flat 2D side profile looking to the right, isolated on white background, centered, large scale, uncropped".
+   * **pet** : Décris le compagnon. Regarde vers la DROITE. Ajoute : ", single pet sprite only, full body, flat 2D side profile looking to the right, isolated on white background, centered, large scale, uncropped".
+   * **monsters** : Décris un ennemi type. Regarde vers la GAUCHE. Ajoute : ", single monster only, full body, flat 2D side profile looking to the left, isolated on white background, centered, large scale, uncropped".
+   * **boss** : Utilise la réponse "pire cauchemar". Transforme-le en monstre tangible regardant vers la GAUCHE. Ajoute : ", single massive boss sprite only, full body, flat 2D side profile looking to the left, isolated on white background, centered, large scale, uncropped".
+
+   * **weapon** (LOGIQUE SPÉCIALE) :
+     * Si l'arme est au **Corps à corps (Melee)** :
+       * "type": "melee"
+       * "prompt": Décris L'ARME elle-même (épée, batte, etc.). Elle doit pointer vers la DROITE. Ajoute : ", single weapon only, flat side view pointing to the right, isolated on white background, centered, large scale, uncropped".
+     * Si l'arme est à **Distance (Ranged)** :
+       * "type": "ranged"
+       * "prompt": Décris LE PROJECTILE tiré (balle, flèche, boule de feu, rayon). Il doit voler de GAUCHE à DROITE. Ajoute : ", single projectile only, flying from left to right, horizontal orientation, isolated on white background, centered, large scale".
 
 2. LES ENVIRONNEMENTS (Fond, Sol) :
    * **background** : Décris le paysage. Ajoute : ", seamless horizontal background, no characters, highly detailed scenery, fills the entire frame, wide angle".
    * **ground** : Décris une TEXTURE de sol en coupe. Herbe/Sol en haut, terre en dessous. Ajoute : ", full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame".
 
 LOGIQUE DE REMPLISSAGE :
-* Weapon Type : 'melee' (corps à corps) ou 'ranged' (distance).
-* Si le joueur ne répond pas, utilise ton imagination pour combler le vide de manière cohérente.
+* Si le joueur ne répond pas, utilise ton imagination pour combler le vide de manière cohérente (et drôle si le contexte s'y prête).
 * Ne fais jamais référence au fait que "le joueur a dit". Décris directement l'objet visuel.
 
 Exemple de réponse (JSON BRUT uniquement) :
-{"mainCharacter": "pixelart, Cyborg ninja with glowing red eye, detailed, high quality, 32-bit, single character only, full body, side profile looking to the right, isolated on white background, centered, large scale, uncropped", "boss": "pixelart, Giant spider, detailed, single massive boss sprite only, side profile looking to the left, isolated on white background, centered, large scale, uncropped", "ground": "pixelart, Green grass on top with dark brown dirt underneath, detailed, full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame", "weapon": {"prompt": "pixelart, laser katana, detailed, single weapon only, side view pointing to the right, isolated on white background", "type": "melee"}}`,
+{"mainCharacter": "pixelart, Drunk superhero holding a beer bottle, detailed, high quality, 32-bit, single character only, full body, flat 2D side profile looking to the right, isolated on white background, centered, large scale, uncropped", "boss": "pixelart, Giant angry mother-in-law monster, detailed, single massive boss sprite only, flat 2D side profile looking to the left, isolated on white background, centered, large scale, uncropped", "ground": "pixelart, Green grass on top with dark brown dirt underneath, detailed, full frame seamless texture, 2D cross-section view, flat top edge, underground soil filling the image, NO sky, NO horizon, NO perspective, fills the whole image frame", "weapon": {"type": "ranged", "prompt": "pixelart, flying beer cap projectile, detailed, single projectile only, flying from left to right, horizontal orientation, isolated on white background, centered, large scale"}}`,
       },
       {
         role: "user",
@@ -88,13 +97,10 @@ Exemple de réponse (JSON BRUT uniquement) :
         Voici les réponses du joueur au questionnaire : ${JSON.stringify(parsedInput.responses)}.`);
   console.log(parsedResponse.data);
 
-  const [mainCharacter, background, weapon, projectile, monsters, boss, ground, pet] = await Promise.all([
+  const [mainCharacter, background, weapon, monsters, boss, ground, pet] = await Promise.all([
     generateImage(parsedResponse.data.mainCharacter, 1024, 1024, true),
     generateImage(parsedResponse.data.background, 2048, 1024),
     generateImage(parsedResponse.data.weapon.prompt, 1024, 1024, true),
-    parsedResponse.data.weapon.type === "ranged"
-      ? generateImage(parsedResponse.data.weapon.projectile || "", 1024, 1024, true)
-      : Promise.resolve(undefined),
     generateImage(parsedResponse.data.monsters, 1024, 1024, true),
     generateImage(parsedResponse.data.boss, 1024, 1024, true),
     generateImage(parsedResponse.data.ground, 2048, 1024),
@@ -106,7 +112,7 @@ Exemple de réponse (JSON BRUT uniquement) :
       mainCharacterImageUrl: mainCharacter,
       backgroundImageUrl: background,
       weaponImageUrl: weapon,
-      projectileImageUrl: projectile,
+      weaponType: parsedResponse.data.weapon.type,
       monstersImageUrl: monsters,
       bossImageUrl: boss,
       groundImageUrl: ground,

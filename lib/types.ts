@@ -26,7 +26,6 @@ export const types = {
       z.object({
         type: z.literal("ranged"),
         prompt: z.string(),
-        projectile: z.string(),
       }),
     ]),
     monsters: z.string(),

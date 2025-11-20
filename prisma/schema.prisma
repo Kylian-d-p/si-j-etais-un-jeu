@@ -18,7 +18,7 @@ model Game {
   mainCharacterImageUrl String   @map("main_character_image_url")
   backgroundImageUrl    String   @map("background_image_url")
   weaponImageUrl        String   @map("weapon_image_url")
-  projectileImageUrl    String?  @map("projectile_image_url")
+  weaponType            String   @default("melee") @map("weapon_type")
   monstersImageUrl      String   @map("monsters_image_url")
   bossImageUrl          String   @map("boss_image_url")
   groundImageUrl        String   @map("ground_image_url")
