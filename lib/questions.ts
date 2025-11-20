@@ -11,7 +11,7 @@ export const questions: z.infer<typeof types.questions> = [
     responseType: "free",
   },
   {
-    label: "Si tu avais un pouvoir lequel serait-il ?",
+    label: "Quel est ton plat préféré ?",
     responseType: "free",
   },
   {
