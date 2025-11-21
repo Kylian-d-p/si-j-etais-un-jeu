@@ -15,9 +15,6 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     unoptimized: false,
   },
-  experimental: {
-    allowMiddlewareResponseBody: true,
-  },
 };
 
 export default nextConfig;

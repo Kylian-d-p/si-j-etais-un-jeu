@@ -1088,16 +1088,18 @@ export default function Game(props: {
   };
 
   const nextWave = () => {
-    spawnWave(gameStateRef.current.wave);
-    // Réinitialiser la position du joueur
-    gameStateRef.current.player.x = 100;
-    gameStateRef.current.player.y = 300;
-    gameStateRef.current.player.velocityX = 0;
-    gameStateRef.current.player.velocityY = 0;
-    gameStateRef.current.player.isOnGround = false;
-    gameStateRef.current.player.direction = 1;
-    gameStateRef.current.state = "playing";
-    setGameState("playing");
+    refetchGameData().then(() => {
+      spawnWave(gameStateRef.current.wave);
+      // Réinitialiser la position du joueur
+      gameStateRef.current.player.x = 100;
+      gameStateRef.current.player.y = 300;
+      gameStateRef.current.player.velocityX = 0;
+      gameStateRef.current.player.velocityY = 0;
+      gameStateRef.current.player.isOnGround = false;
+      gameStateRef.current.player.direction = 1;
+      gameStateRef.current.state = "playing";
+      setGameState("playing");
+    });
   };
 
   if (!imagesLoaded) {
