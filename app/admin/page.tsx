@@ -28,6 +28,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchGames();
+
+    // Mettre à jour la liste toutes les 3 secondes
+    const interval = setInterval(() => {
+      fetchGames();
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchGames = async () => {
