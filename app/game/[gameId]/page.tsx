@@ -12,5 +12,5 @@ export default async function GamePage({ params }: { params: Promise<{ gameId: s
     return <div>Game not found</div>;
   }
 
-  return <Game game={game} />;
+  return <Game game={{ ...game, id: gameId }} />;
 }

@@ -76,14 +76,20 @@ interface DamageParticle {
 
 export default function Game(props: {
   game: {
+    id: string;
     mainCharacterImageUrl: string;
+    mainCharacterNeedsFlipping: boolean;
     backgroundImageUrl: string;
     weaponImageUrl: string;
+    weaponNeedsFlipping: boolean;
     weaponType: string;
     monstersImageUrl: string;
+    monstersNeedsFlipping: boolean;
     bossImageUrl: string;
+    bossNeedsFlipping: boolean;
     groundImageUrl: string;
     petImageUrl: string;
+    petNeedsFlipping: boolean;
   };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,9 +97,29 @@ export default function Game(props: {
   const [currentWave, setCurrentWave] = useState(1);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [gameData, setGameData] = useState(props.game);
+  const [forceReload, setForceReload] = useState(0);
 
   // Détecter si le joueur est en mode mêlée
-  const isMelee = props.game.weaponType === "melee";
+  const isMelee = gameData.weaponType === "melee";
+
+  // Fonction pour refetch les données du jeu
+  const refetchGameData = async () => {
+    try {
+      const response = await fetch(`/api/game/${props.game.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Créer une nouvelle référence d'objet pour forcer le re-render
+        setGameData({ ...data });
+        // Forcer le rechargement pour appliquer les nouveaux flips
+        setForceReload((prev) => prev + 1);
+        return data;
+      }
+    } catch (error) {
+      console.error("Failed to refetch game data:", error);
+    }
+    return gameData;
+  };
 
   const gameStateRef = useRef({
     player: {
@@ -156,13 +182,13 @@ export default function Game(props: {
     };
 
     Promise.all([
-      loadImage(props.game.mainCharacterImageUrl),
-      loadImage(props.game.backgroundImageUrl),
-      loadImage(props.game.weaponImageUrl),
-      loadImage(props.game.monstersImageUrl),
-      loadImage(props.game.bossImageUrl),
-      loadImage(props.game.groundImageUrl),
-      loadImage(props.game.petImageUrl),
+      loadImage(gameData.mainCharacterImageUrl),
+      loadImage(gameData.backgroundImageUrl),
+      loadImage(gameData.weaponImageUrl),
+      loadImage(gameData.monstersImageUrl),
+      loadImage(gameData.bossImageUrl),
+      loadImage(gameData.groundImageUrl),
+      loadImage(gameData.petImageUrl),
     ])
       .then(([player, background, weapon, monster, boss, ground, pet]) => {
         imagesRef.current = {
@@ -180,7 +206,7 @@ export default function Game(props: {
       .catch((error) => {
         console.error("Erreur lors du chargement des images:", error);
       });
-  }, [props.game]);
+  }, [gameData]);
 
   // Gestion des touches
   useEffect(() => {
@@ -383,9 +409,16 @@ export default function Game(props: {
         ctx.fillText("pour commencer", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 40);
 
         if (game.keys["enter"] || game.keys[" "]) {
-          game.state = "playing";
-          setGameState("playing");
-          spawnWave(1);
+          // Empêcher les touches multiples
+          game.keys["enter"] = false;
+          game.keys[" "] = false;
+
+          // Refetch les données avant de commencer
+          refetchGameData().then(() => {
+            game.state = "playing";
+            setGameState("playing");
+            spawnWave(1);
+          });
         }
 
         animationFrameId = requestAnimationFrame(gameLoop);
@@ -483,17 +516,24 @@ export default function Game(props: {
 
       // Si on est dans l'écran de fin de vague et qu'on appuie sur Entrée ou Espace
       if (game.state === "wave-complete" && (game.keys["enter"] || game.keys[" "])) {
-        spawnWave(game.wave);
-        // Réinitialiser la position du joueur
-        game.player.x = 100;
-        game.player.y = 300;
-        game.player.velocityX = 0;
-        game.player.velocityY = 0;
-        game.player.isOnGround = false;
-        game.player.direction = 1;
-        game.waveCompleteTimer = 0; // Réinitialiser le timer
-        game.state = "playing";
-        setGameState("playing");
+        // Empêcher les touches multiples
+        game.keys["enter"] = false;
+        game.keys[" "] = false;
+
+        // Refetch les données avant de passer à la vague suivante
+        refetchGameData().then(() => {
+          spawnWave(game.wave);
+          // Réinitialiser la position du joueur
+          game.player.x = 100;
+          game.player.y = 300;
+          game.player.velocityX = 0;
+          game.player.velocityY = 0;
+          game.player.isOnGround = false;
+          game.player.direction = 1;
+          game.waveCompleteTimer = 0; // Réinitialiser le timer
+          game.state = "playing";
+          setGameState("playing");
+        });
         animationFrameId = requestAnimationFrame(gameLoop);
         return;
       }
@@ -878,7 +918,14 @@ export default function Game(props: {
       // Dessiner les projectiles
       game.projectiles.forEach((proj) => {
         if (imagesRef.current.projectile) {
-          ctx.drawImage(imagesRef.current.projectile, proj.x, proj.y, proj.width, proj.height);
+          ctx.save();
+          if (gameData.weaponNeedsFlipping) {
+            ctx.scale(-1, 1);
+            ctx.drawImage(imagesRef.current.projectile, -proj.x - proj.width, proj.y, proj.width, proj.height);
+          } else {
+            ctx.drawImage(imagesRef.current.projectile, proj.x, proj.y, proj.width, proj.height);
+          }
+          ctx.restore();
         } else {
           ctx.fillStyle = "yellow";
           ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
@@ -889,7 +936,9 @@ export default function Game(props: {
       game.monsters.forEach((monster) => {
         if (imagesRef.current.monster) {
           ctx.save();
-          if (monster.direction === -1) {
+          // Combiner la direction du monstre avec le flip de la BDD
+          const shouldFlip = gameData.monstersNeedsFlipping ? monster.direction === 1 : monster.direction === -1;
+          if (shouldFlip) {
             ctx.scale(-1, 1);
             ctx.drawImage(imagesRef.current.monster, -monster.x - monster.width, monster.y, monster.width, monster.height);
           } else {
@@ -907,7 +956,14 @@ export default function Game(props: {
 
       // Dessiner le boss
       if (game.boss && imagesRef.current.boss) {
-        ctx.drawImage(imagesRef.current.boss, game.boss.x, game.boss.y, game.boss.width, game.boss.height);
+        ctx.save();
+        if (gameData.bossNeedsFlipping) {
+          ctx.scale(-1, 1);
+          ctx.drawImage(imagesRef.current.boss, -game.boss.x - game.boss.width, game.boss.y, game.boss.width, game.boss.height);
+        } else {
+          ctx.drawImage(imagesRef.current.boss, game.boss.x, game.boss.y, game.boss.width, game.boss.height);
+        }
+        ctx.restore();
 
         // Barre de vie du boss
         ctx.fillStyle = "darkred";
@@ -919,8 +975,10 @@ export default function Game(props: {
       // Dessiner le pet
       if (game.pet && imagesRef.current.pet) {
         ctx.save();
-        if (game.pet.direction === -1) {
-          // Inverser l'image horizontalement si le pet va à gauche
+        // Combiner la direction du pet avec le flip de la BDD
+        const shouldFlip = gameData.petNeedsFlipping ? game.pet.direction === 1 : game.pet.direction === -1;
+        if (shouldFlip) {
+          // Inverser l'image horizontalement
           ctx.scale(-1, 1);
           ctx.drawImage(imagesRef.current.pet, -game.pet.x - game.pet.width, game.pet.y, game.pet.width, game.pet.height);
         } else {
@@ -935,7 +993,9 @@ export default function Game(props: {
         const playerHeight = player.isCrouching ? player.height * 0.7 : player.height;
         const playerY = player.isCrouching ? player.y + player.height * 0.3 : player.y;
 
-        if (player.direction === -1) {
+        // Combiner la direction du joueur avec le flip de la BDD
+        const shouldFlip = gameData.mainCharacterNeedsFlipping ? player.direction === 1 : player.direction === -1;
+        if (shouldFlip) {
           ctx.scale(-1, 1);
           ctx.drawImage(imagesRef.current.player, -player.x - player.width, playerY, player.width, playerHeight);
         } else {
@@ -954,6 +1014,9 @@ export default function Game(props: {
           // Appliquer la rotation autour du centre de l'arme
           ctx.translate(weaponCenterX, weaponCenterY);
           ctx.rotate((player.weaponRotation * Math.PI) / 180);
+          if (gameData.weaponNeedsFlipping) {
+            ctx.scale(-1, 1);
+          }
           ctx.drawImage(imagesRef.current.weapon, -20, -20, 40, 40);
           ctx.restore();
         }
@@ -988,7 +1051,8 @@ export default function Game(props: {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [imagesLoaded, isMelee]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imagesLoaded, isMelee, forceReload]);
 
   const restartGame = () => {
     gameStateRef.current = {
@@ -1092,9 +1156,11 @@ export default function Game(props: {
                   </h1>
                   <button
                     onClick={() => {
-                      gameStateRef.current.state = "playing";
-                      setGameState("playing");
-                      spawnWave(1);
+                      refetchGameData().then(() => {
+                        gameStateRef.current.state = "playing";
+                        setGameState("playing");
+                        spawnWave(1);
+                      });
                     }}
                     className="bg-linear-to-r cursor-pointer from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-6 px-12 rounded-xl text-3xl shadow-lg hover:shadow-2xl hover:scale-110 transition-all duration-300 transform animate-bounce"
                   >

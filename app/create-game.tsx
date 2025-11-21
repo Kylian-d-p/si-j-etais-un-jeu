@@ -97,26 +97,26 @@ Exemple de réponse (JSON BRUT uniquement) :
         Voici les réponses du joueur au questionnaire : ${JSON.stringify(parsedInput.responses)}.`);
   console.log(parsedResponse.data);
 
-  const [mainCharacter, background, weapon, monsters, boss, ground, pet] = await Promise.all([
-    generateImage(parsedResponse.data.mainCharacter, 1024, 1024, true),
-    generateImage(parsedResponse.data.background, 2048, 1024),
-    generateImage(parsedResponse.data.weapon.prompt, 1024, 1024, true),
-    generateImage(parsedResponse.data.monsters, 1024, 1024, true),
-    generateImage(parsedResponse.data.boss, 1024, 1024, true),
-    generateImage(parsedResponse.data.ground, 2048, 1024),
-    generateImage(parsedResponse.data.pet, 1024, 1024, true),
-  ]);
+  const assets = {
+    mainCharacter: await generateImage(parsedResponse.data.mainCharacter, 1024, 1024, true),
+    background: await generateImage(parsedResponse.data.background, 2048, 1024),
+    weapon: await generateImage(parsedResponse.data.weapon.prompt, 1024, 1024, true),
+    monsters: await generateImage(parsedResponse.data.monsters, 1024, 1024, true),
+    boss: await generateImage(parsedResponse.data.boss, 1024, 1024, true),
+    ground: await generateImage(parsedResponse.data.ground, 2048, 1024),
+    pet: await generateImage(parsedResponse.data.pet, 1024, 1024, true),
+  };
 
   const game = await prisma.game.create({
     data: {
-      mainCharacterImageUrl: mainCharacter,
-      backgroundImageUrl: background,
-      weaponImageUrl: weapon,
+      mainCharacterImageUrl: assets.mainCharacter,
+      backgroundImageUrl: assets.background,
+      weaponImageUrl: assets.weapon,
       weaponType: parsedResponse.data.weapon.type,
-      monstersImageUrl: monsters,
-      bossImageUrl: boss,
-      groundImageUrl: ground,
-      petImageUrl: pet,
+      monstersImageUrl: assets.monsters,
+      bossImageUrl: assets.boss,
+      groundImageUrl: assets.ground,
+      petImageUrl: assets.pet,
     },
   });
 
