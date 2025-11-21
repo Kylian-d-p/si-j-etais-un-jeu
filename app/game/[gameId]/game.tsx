@@ -87,14 +87,7 @@ export default function Game(props: {
   };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<
-    | "playing"
-    | "wave-complete"
-    | "pet-intro"
-    | "boss-intro"
-    | "victory"
-    | "game-over"
-  >("playing");
+  const [gameState, setGameState] = useState<"intro" | "playing" | "wave-complete" | "pet-intro" | "boss-intro" | "victory" | "game-over">("intro");
   const [currentWave, setCurrentWave] = useState(1);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [showControls, setShowControls] = useState(false);
@@ -127,7 +120,7 @@ export default function Game(props: {
     damageParticles: [] as DamageParticle[],
     keys: {} as Record<string, boolean>,
     wave: 1,
-    state: "playing" as typeof gameState,
+    state: "intro" as typeof gameState,
     bossIntroProgress: 0,
     waveCompleteTimer: 0,
   });
@@ -195,10 +188,7 @@ export default function Game(props: {
       gameStateRef.current.keys[e.key.toLowerCase()] = true;
 
       // Cheat code: N pour passer à la vague suivante
-      if (
-        e.key.toLowerCase() === "n" &&
-        gameStateRef.current.state === "playing"
-      ) {
+      if (e.key.toLowerCase() === "n" && gameStateRef.current.state === "playing") {
         if (gameStateRef.current.wave < 3) {
           // Passer à la vague suivante
           gameStateRef.current.monsters = [];
@@ -288,9 +278,7 @@ export default function Game(props: {
 
   // Initialiser le jeu
   useEffect(() => {
-    if (imagesLoaded) {
-      spawnWave(1);
-    }
+    // Ne rien faire automatiquement, attendre que le joueur clique sur Start
   }, [imagesLoaded]);
 
   // Boucle de jeu
@@ -350,12 +338,7 @@ export default function Game(props: {
     const frameTime = 1000 / targetFPS;
 
     const checkCollision = (a: Entity, b: Entity): boolean => {
-      return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-      );
+      return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
     };
 
     const gameLoop = (currentTime: number) => {
@@ -369,13 +352,7 @@ export default function Game(props: {
 
       // Dessiner le fond
       if (imagesRef.current.background) {
-        ctx.drawImage(
-          imagesRef.current.background,
-          0,
-          0,
-          CANVAS_WIDTH,
-          CANVAS_HEIGHT
-        );
+        ctx.drawImage(imagesRef.current.background, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       }
 
       // Dessiner le sol
@@ -387,15 +364,32 @@ export default function Game(props: {
         // Dessiner le sol en le répétant si nécessaire pour couvrir toute la largeur
         let x = 0;
         while (x < CANVAS_WIDTH) {
-          ctx.drawImage(
-            imagesRef.current.ground,
-            x,
-            GROUND_Y - 5,
-            groundWidth,
-            groundHeight
-          );
+          ctx.drawImage(imagesRef.current.ground, x, GROUND_Y - 5, groundWidth, groundHeight);
           x += groundWidth;
         }
+      }
+
+      // Écran d'intro avec bouton Start
+      if (game.state === "intro") {
+        // Dessiner un écran d'accueil
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        ctx.fillStyle = "white";
+        ctx.font = "bold 60px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Appuyez sur Entrée ou Espace", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
+        ctx.font = "bold 40px Arial";
+        ctx.fillText("pour commencer", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 40);
+
+        if (game.keys["enter"] || game.keys[" "]) {
+          game.state = "playing";
+          setGameState("playing");
+          spawnWave(1);
+        }
+
+        animationFrameId = requestAnimationFrame(gameLoop);
+        return;
       }
 
       // Animation d'intro du boss
@@ -408,9 +402,7 @@ export default function Game(props: {
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
           // Animation de tremblement intense
-          const shake =
-            Math.sin(game.bossIntroProgress * 30) *
-            (10 * game.bossIntroProgress);
+          const shake = Math.sin(game.bossIntroProgress * 30) * (10 * game.bossIntroProgress);
           const scale = 0.5 + game.bossIntroProgress * 1.5;
 
           // Éclairs rouges aléatoires
@@ -431,13 +423,7 @@ export default function Game(props: {
             const centerY = CANVAS_HEIGHT / 2 - (game.boss.height * scale) / 2;
 
             ctx.globalAlpha = game.bossIntroProgress;
-            ctx.drawImage(
-              imagesRef.current.boss,
-              centerX,
-              centerY,
-              game.boss.width * scale,
-              game.boss.height * scale
-            );
+            ctx.drawImage(imagesRef.current.boss, centerX, centerY, game.boss.width * scale, game.boss.height * scale);
           }
 
           ctx.restore();
@@ -475,29 +461,15 @@ export default function Game(props: {
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         if (imagesRef.current.pet) {
-          ctx.drawImage(
-            imagesRef.current.pet,
-            CANVAS_WIDTH / 2 - 50,
-            CANVAS_HEIGHT / 2 - 50,
-            100,
-            100
-          );
+          ctx.drawImage(imagesRef.current.pet, CANVAS_WIDTH / 2 - 50, CANVAS_HEIGHT / 2 - 50, 100, 100);
         }
 
         ctx.fillStyle = "white";
         ctx.font = "bold 30px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(
-          "Vous avez reçu un compagnon !",
-          CANVAS_WIDTH / 2,
-          CANVAS_HEIGHT / 2 + 100
-        );
+        ctx.fillText("Vous avez reçu un compagnon !", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 100);
         ctx.font = "20px Arial";
-        ctx.fillText(
-          "Appuyez sur Entrée ou Espace pour continuer",
-          CANVAS_WIDTH / 2,
-          CANVAS_HEIGHT / 2 + 140
-        );
+        ctx.fillText("Appuyez sur Entrée ou Espace pour continuer", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 140);
 
         if (game.keys["enter"] || game.keys[" "]) {
           game.state = "boss-intro";
@@ -510,10 +482,7 @@ export default function Game(props: {
       }
 
       // Si on est dans l'écran de fin de vague et qu'on appuie sur Entrée ou Espace
-      if (
-        game.state === "wave-complete" &&
-        (game.keys["enter"] || game.keys[" "])
-      ) {
+      if (game.state === "wave-complete" && (game.keys["enter"] || game.keys[" "])) {
         spawnWave(game.wave);
         // Réinitialiser la position du joueur
         game.player.x = 100;
@@ -543,10 +512,8 @@ export default function Game(props: {
         // Accélérer vers la direction souhaitée
         player.velocityX += inputDir * ACCEL * deltaTime;
         // Clamp à la vitesse max
-        if (player.velocityX > MAX_MOVE_SPEED)
-          player.velocityX = MAX_MOVE_SPEED;
-        if (player.velocityX < -MAX_MOVE_SPEED)
-          player.velocityX = -MAX_MOVE_SPEED;
+        if (player.velocityX > MAX_MOVE_SPEED) player.velocityX = MAX_MOVE_SPEED;
+        if (player.velocityX < -MAX_MOVE_SPEED) player.velocityX = -MAX_MOVE_SPEED;
         player.direction = inputDir > 0 ? 1 : -1;
       } else {
         // Appliquer friction/décélération lorsque aucune touche n'est pressée
@@ -561,10 +528,7 @@ export default function Game(props: {
       player.isCrouching = game.keys["s"] || game.keys["arrowdown"];
 
       // Sauter
-      if (
-        (game.keys[" "] || game.keys["z"] || game.keys["arrowup"]) &&
-        player.isOnGround
-      ) {
+      if ((game.keys[" "] || game.keys["z"] || game.keys["arrowup"]) && player.isOnGround) {
         player.velocityY = JUMP_FORCE;
         player.isOnGround = false;
       }
@@ -579,14 +543,13 @@ export default function Game(props: {
             x: player.x + (player.direction === 1 ? player.width : 0),
             y: player.y + player.height / 2,
             velocityX: player.direction * 1.7,
-            width: 30,
-            height: 20,
+            width: 50,
+            height: 35,
           });
         } else {
           // Attaque de mêlée avec animation de rotation
           player.weaponRotation = player.direction * 45; // Rotation de 45° vers l'avant
-          const attackX =
-            player.x + (player.direction === 1 ? player.width : -ATTACK_RANGE);
+          const attackX = player.x + (player.direction === 1 ? player.width : -ATTACK_RANGE);
           const attackBox = {
             x: attackX,
             y: player.y,
@@ -617,15 +580,13 @@ export default function Game(props: {
         if (Math.abs(player.weaponRotation) < rotationSpeed) {
           player.weaponRotation = 0;
         } else {
-          player.weaponRotation -=
-            Math.sign(player.weaponRotation) * rotationSpeed;
+          player.weaponRotation -= Math.sign(player.weaponRotation) * rotationSpeed;
         }
       }
 
       // Physique du joueur
       // Appliquer une gravité plus importante si le joueur s'accroupit en l'air
-      const gravityMultiplier =
-        player.isCrouching && !player.isOnGround ? CROUCH_FALL_MULTIPLIER : 1.5;
+      const gravityMultiplier = player.isCrouching && !player.isOnGround ? CROUCH_FALL_MULTIPLIER : 1.5;
       player.velocityY += GRAVITY * gravityMultiplier * deltaTime;
       player.x += player.velocityX * deltaTime;
       player.y += player.velocityY * deltaTime;
@@ -749,10 +710,7 @@ export default function Game(props: {
             const MAX_SPEED = 2; // plafond de vitesse
 
             if (absDist > MIN_DIST) {
-              const speed = Math.min(
-                BASE_SPEED + absDist * SPEED_FACTOR,
-                MAX_SPEED
-              );
+              const speed = Math.min(BASE_SPEED + absDist * SPEED_FACTOR, MAX_SPEED);
               game.boss.velocityX = distanceToPlayer > 0 ? speed : -speed;
             } else {
               game.boss.velocityX = 0;
@@ -860,11 +818,7 @@ export default function Game(props: {
       }
 
       // Vérifier fin de vague
-      if (
-        game.monsters.length === 0 &&
-        !game.boss &&
-        game.state === "playing"
-      ) {
+      if (game.monsters.length === 0 && !game.boss && game.state === "playing") {
         // Démarrer le timer de fin de vague
         if (game.waveCompleteTimer === 0) {
           game.waveCompleteTimer = 60; // 60 frames à 60 FPS = 1 seconde
@@ -924,13 +878,7 @@ export default function Game(props: {
       // Dessiner les projectiles
       game.projectiles.forEach((proj) => {
         if (imagesRef.current.projectile) {
-          ctx.drawImage(
-            imagesRef.current.projectile,
-            proj.x,
-            proj.y,
-            proj.width,
-            proj.height
-          );
+          ctx.drawImage(imagesRef.current.projectile, proj.x, proj.y, proj.width, proj.height);
         } else {
           ctx.fillStyle = "yellow";
           ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
@@ -943,21 +891,9 @@ export default function Game(props: {
           ctx.save();
           if (monster.direction === -1) {
             ctx.scale(-1, 1);
-            ctx.drawImage(
-              imagesRef.current.monster,
-              -monster.x - monster.width,
-              monster.y,
-              monster.width,
-              monster.height
-            );
+            ctx.drawImage(imagesRef.current.monster, -monster.x - monster.width, monster.y, monster.width, monster.height);
           } else {
-            ctx.drawImage(
-              imagesRef.current.monster,
-              monster.x,
-              monster.y,
-              monster.width,
-              monster.height
-            );
+            ctx.drawImage(imagesRef.current.monster, monster.x, monster.y, monster.width, monster.height);
           }
           ctx.restore();
         }
@@ -966,34 +902,18 @@ export default function Game(props: {
         ctx.fillStyle = "red";
         ctx.fillRect(monster.x, monster.y - 10, monster.width, 5);
         ctx.fillStyle = "green";
-        ctx.fillRect(
-          monster.x,
-          monster.y - 10,
-          (monster.health / monster.maxHealth) * monster.width,
-          5
-        );
+        ctx.fillRect(monster.x, monster.y - 10, (monster.health / monster.maxHealth) * monster.width, 5);
       });
 
       // Dessiner le boss
       if (game.boss && imagesRef.current.boss) {
-        ctx.drawImage(
-          imagesRef.current.boss,
-          game.boss.x,
-          game.boss.y,
-          game.boss.width,
-          game.boss.height
-        );
+        ctx.drawImage(imagesRef.current.boss, game.boss.x, game.boss.y, game.boss.width, game.boss.height);
 
         // Barre de vie du boss
         ctx.fillStyle = "darkred";
         ctx.fillRect(game.boss.x, game.boss.y - 15, game.boss.width, 8);
         ctx.fillStyle = "red";
-        ctx.fillRect(
-          game.boss.x,
-          game.boss.y - 15,
-          (game.boss.health / game.boss.maxHealth) * game.boss.width,
-          8
-        );
+        ctx.fillRect(game.boss.x, game.boss.y - 15, (game.boss.health / game.boss.maxHealth) * game.boss.width, 8);
       }
 
       // Dessiner le pet
@@ -1002,21 +922,9 @@ export default function Game(props: {
         if (game.pet.direction === -1) {
           // Inverser l'image horizontalement si le pet va à gauche
           ctx.scale(-1, 1);
-          ctx.drawImage(
-            imagesRef.current.pet,
-            -game.pet.x - game.pet.width,
-            game.pet.y,
-            game.pet.width,
-            game.pet.height
-          );
+          ctx.drawImage(imagesRef.current.pet, -game.pet.x - game.pet.width, game.pet.y, game.pet.width, game.pet.height);
         } else {
-          ctx.drawImage(
-            imagesRef.current.pet,
-            game.pet.x,
-            game.pet.y,
-            game.pet.width,
-            game.pet.height
-          );
+          ctx.drawImage(imagesRef.current.pet, game.pet.x, game.pet.y, game.pet.width, game.pet.height);
         }
         ctx.restore();
       }
@@ -1024,37 +932,20 @@ export default function Game(props: {
       // Dessiner le joueur
       if (imagesRef.current.player) {
         ctx.save();
-        const playerHeight = player.isCrouching
-          ? player.height * 0.7
-          : player.height;
-        const playerY = player.isCrouching
-          ? player.y + player.height * 0.3
-          : player.y;
+        const playerHeight = player.isCrouching ? player.height * 0.7 : player.height;
+        const playerY = player.isCrouching ? player.y + player.height * 0.3 : player.y;
 
         if (player.direction === -1) {
           ctx.scale(-1, 1);
-          ctx.drawImage(
-            imagesRef.current.player,
-            -player.x - player.width,
-            playerY,
-            player.width,
-            playerHeight
-          );
+          ctx.drawImage(imagesRef.current.player, -player.x - player.width, playerY, player.width, playerHeight);
         } else {
-          ctx.drawImage(
-            imagesRef.current.player,
-            player.x,
-            playerY,
-            player.width,
-            playerHeight
-          );
+          ctx.drawImage(imagesRef.current.player, player.x, playerY, player.width, playerHeight);
         }
         ctx.restore();
 
         // Dessiner l'arme (uniquement pour les joueurs mêlée)
         if (isMelee && imagesRef.current.weapon) {
-          const weaponX =
-            player.x + (player.direction === 1 ? player.width - 10 : -30);
+          const weaponX = player.x + (player.direction === 1 ? player.width - 10 : -30);
           const weaponY = player.y + 25;
           const weaponCenterX = weaponX + 20;
           const weaponCenterY = weaponY + 20;
@@ -1124,13 +1015,12 @@ export default function Game(props: {
       damageParticles: [],
       keys: {},
       wave: 1,
-      state: "playing",
+      state: "intro",
       bossIntroProgress: 0,
       waveCompleteTimer: 0,
     };
-    setGameState("playing");
+    setGameState("intro");
     setCurrentWave(1);
-    spawnWave(1);
   };
 
   const nextWave = () => {
@@ -1150,9 +1040,7 @@ export default function Game(props: {
     return (
       <div className="flex items-center justify-center h-screen bg-linear-to-br from-purple-600 via-pink-500 to-orange-400">
         <div className="text-center">
-          <div className="text-3xl mb-6 text-white font-bold animate-pulse">
-            Chargement du jeu...
-          </div>
+          <div className="text-3xl mb-6 text-white font-bold animate-pulse">Chargement du jeu...</div>
           <div className="text-6xl animate-spin">⚔️</div>
         </div>
       </div>
@@ -1163,34 +1051,18 @@ export default function Game(props: {
     <div className="relative h-screen w-screen overflow-hidden bg-linear-to-br from-purple-600 via-pink-500 to-orange-400">
       {/* Effets d'arrière-plan animés */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 text-4xl opacity-20 animate-bounce">
-          ⚔️
-        </div>
-        <div className="absolute top-20 right-20 text-5xl opacity-20 animate-pulse">
-          🛡️
-        </div>
-        <div
-          className="absolute bottom-20 left-20 text-6xl opacity-20 animate-spin"
-          style={{ animationDuration: "8s" }}
-        >
+        <div className="absolute top-10 left-10 text-4xl opacity-20 animate-bounce">⚔️</div>
+        <div className="absolute top-20 right-20 text-5xl opacity-20 animate-pulse">🛡️</div>
+        <div className="absolute bottom-20 left-20 text-6xl opacity-20 animate-spin" style={{ animationDuration: "8s" }}>
           ✨
         </div>
-        <div
-          className="absolute bottom-10 right-10 text-4xl opacity-20 animate-bounce"
-          style={{ animationDelay: "1s" }}
-        >
+        <div className="absolute bottom-10 right-10 text-4xl opacity-20 animate-bounce" style={{ animationDelay: "1s" }}>
           🎮
         </div>
-        <div
-          className="absolute top-1/2 left-1/4 text-3xl opacity-10 animate-pulse"
-          style={{ animationDelay: "0.5s" }}
-        >
+        <div className="absolute top-1/2 left-1/4 text-3xl opacity-10 animate-pulse" style={{ animationDelay: "0.5s" }}>
           👾
         </div>
-        <div
-          className="absolute top-1/3 right-1/3 text-4xl opacity-10 animate-bounce"
-          style={{ animationDelay: "1.5s" }}
-        >
+        <div className="absolute top-1/3 right-1/3 text-4xl opacity-10 animate-bounce" style={{ animationDelay: "1.5s" }}>
           💎
         </div>
       </div>
@@ -1212,6 +1084,27 @@ export default function Game(props: {
             />
 
             {/* Overlays de jeu */}
+            {gameState === "intro" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl">
+                <div className="text-center text-white transform transition-all duration-500">
+                  <h1 className="text-7xl font-bold mb-8 bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-pulse">
+                    ⚔️ PRÊT POUR L&apos;AVENTURE ? ⚔️
+                  </h1>
+                  <button
+                    onClick={() => {
+                      gameStateRef.current.state = "playing";
+                      setGameState("playing");
+                      spawnWave(1);
+                    }}
+                    className="bg-linear-to-r cursor-pointer from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-6 px-12 rounded-xl text-3xl shadow-lg hover:shadow-2xl hover:scale-110 transition-all duration-300 transform animate-bounce"
+                  >
+                    🎮 START 🎮
+                  </button>
+                  <p className="text-sm mt-6 text-white/60">Appuyez sur Entrée ou Espace pour commencer</p>
+                </div>
+              </div>
+            )}
+
             {gameState === "wave-complete" && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl">
                 <div className="text-center text-white transform transition-all duration-500">
@@ -1224,9 +1117,7 @@ export default function Game(props: {
                   >
                     Vague suivante →
                   </button>
-                  <p className="text-sm mt-4 text-white/60">
-                    Appuyez sur Entrée ou Espace pour continuer
-                  </p>
+                  <p className="text-sm mt-4 text-white/60">Appuyez sur Entrée ou Espace pour continuer</p>
                 </div>
               </div>
             )}
@@ -1234,9 +1125,7 @@ export default function Game(props: {
             {gameState === "victory" && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl">
                 <div className="text-center text-white transform transition-all duration-500">
-                  <h2 className="text-6xl font-bold mb-4 animate-bounce">
-                    🎉 VICTOIRE ! 🎉
-                  </h2>
+                  <h2 className="text-6xl font-bold mb-4 animate-bounce">🎉 VICTOIRE ! 🎉</h2>
                   <p className="text-2xl mb-8 bg-linear-to-r from-yellow-400 via-orange-400 to-pink-400 bg-clip-text text-transparent font-bold">
                     Vous avez vaincu le boss final !
                   </p>
@@ -1253,12 +1142,8 @@ export default function Game(props: {
             {gameState === "game-over" && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl">
                 <div className="text-center text-white transform transition-all duration-500">
-                  <h2 className="text-6xl font-bold mb-4 text-red-500 animate-pulse">
-                    💀 GAME OVER 💀
-                  </h2>
-                  <p className="text-xl mb-8 text-gray-300">
-                    Vous avez été vaincu...
-                  </p>
+                  <h2 className="text-6xl font-bold mb-4 text-red-500 animate-pulse">💀 GAME OVER 💀</h2>
+                  <p className="text-xl mb-8 text-gray-300">Vous avez été vaincu...</p>
                   <button
                     onClick={restartGame}
                     className="bg-linear-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 transform"
@@ -1269,6 +1154,15 @@ export default function Game(props: {
               </div>
             )}
           </div>
+
+          {/* Bouton Régénérer */}
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="absolute cursor-pointer bottom-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 text-white p-3 md:p-4 rounded-xl shadow-2xl transition-all duration-300 hover:bg-white/20 hover:scale-110 hover:border-white/40 z-10"
+            style={{ boxShadow: "0 0 20px rgba(236, 72, 153, 0.3)" }}
+          >
+            <span className="text-xl">🔄 Régénérer</span>
+          </button>
 
           {/* Bouton pour afficher/masquer les contrôles */}
           <button
@@ -1289,10 +1183,7 @@ export default function Game(props: {
                 <h3 className="font-bold text-xl md:text-2xl bg-linear-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
                   🎮 Contrôles
                 </h3>
-                <button
-                  onClick={() => setShowControls(false)}
-                  className="text-white/60 hover:text-white text-2xl transition-colors duration-200"
-                >
+                <button onClick={() => setShowControls(false)} className="text-white/60 hover:text-white text-2xl transition-colors duration-200">
                   ✕
                 </button>
               </div>
