@@ -14,17 +14,22 @@ datasource db {
 }
 
 model Game {
-  id                    String   @id @default(uuid())
-  mainCharacterImageUrl String   @map("main_character_image_url")
-  backgroundImageUrl    String   @map("background_image_url")
-  weaponImageUrl        String   @map("weapon_image_url")
-  weaponType            String   @default("melee") @map("weapon_type")
-  monstersImageUrl      String   @map("monsters_image_url")
-  bossImageUrl          String   @map("boss_image_url")
-  groundImageUrl        String   @map("ground_image_url")
-  petImageUrl           String   @map("pet_image_url")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                         String   @id @default(uuid())
+  mainCharacterImageUrl      String   @map("main_character_image_url")
+  mainCharacterNeedsFlipping Boolean  @default(false) @map("main_character_needs_flipping")
+  backgroundImageUrl         String   @map("background_image_url")
+  weaponImageUrl             String   @map("weapon_image_url")
+  weaponNeedsFlipping        Boolean  @default(false) @map("weapon_needs_flipping")
+  weaponType                 String   @default("melee") @map("weapon_type")
+  monstersImageUrl           String   @map("monsters_image_url")
+  monstersNeedsFlipping      Boolean  @default(false) @map("monsters_needs_flipping")
+  bossImageUrl               String   @map("boss_image_url")
+  bossNeedsFlipping          Boolean  @default(false) @map("boss_needs_flipping")
+  groundImageUrl             String   @map("ground_image_url")
+  petImageUrl                String   @map("pet_image_url")
+  petNeedsFlipping           Boolean  @default(false) @map("pet_needs_flipping")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
 
   @@map("games")
 }
