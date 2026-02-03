@@ -93,8 +93,30 @@ export default function Home() {
           {/* Clean text display */}
           <div className="text-center space-y-6 w-full">
             <h2 className="font-bold text-5xl text-white drop-shadow-2xl">Création en cours...</h2>
-            <p className="text-2xl text-white/95 drop-shadow-lg font-medium min-h-8">{loadingMessages[currentLoadingMessage]}</p>
-
+            <h3 className="font-bold text-3xl text-white drop-shadow-2xl">Commande du jeu :</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 text-xs md:text-sm">
+                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
+                  <span className="text-xl md:text-2xl">⬅️</span>
+                  <span>Q / ← : Reculer</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
+                  <span className="text-xl md:text-2xl">➡️</span>
+                  <span>D / → : Avancer</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
+                  <span className="text-xl md:text-2xl">⬆️</span>
+                  <span>Z / ↑ : Sauter</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
+                  <span className="text-xl md:text-2xl">⬇️</span>
+                  <span>S / ↓ : Accroupir</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
+                  <span className="text-xl md:text-2xl">⚔️</span>
+                  <span>E : Attaquer</span>
+                </div>
+                
+              </div>
             {/* Simple dots animation */}
             <div className="flex justify-center gap-3 pt-4">
               <div className="w-4 h-4 bg-white rounded-full animate-bounce"></div>
