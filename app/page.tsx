@@ -101,7 +101,7 @@ export default function Home() {
             <h3 className="font-bold text-base text-yellow-300 mb-1 flex items-center gap-2">📜 Règles du jeu</h3>
             <p className="text-white/90 text-xs leading-relaxed">
               Affrontez <span className="text-pink-300 font-semibold">3 vagues d&apos;ennemis</span>, puis un{" "}
-              <span className="text-red-400 font-semibold">boss final</span> ! Après la 2ème vague, un{" "}
+              <span className="text-cyan-400 font-semibold">boss final</span> ! Après la 2ème vague, un{" "}
               <span className="text-cyan-300 font-semibold">compagnon</span> viendra vous aider. Bonne chance ! 🦸
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function Home() {
           {/* Contrôles */}
           <div className="bg-white/15 backdrop-blur-lg rounded-xl p-4 border border-white/30 w-full">
             <h3 className="font-bold text-base text-yellow-300 mb-2 flex items-center gap-2">🎮 Contrôles</h3>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-white">
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-2 text-white">
               <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
                 <div className="flex gap-1">
                   <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">Q</kbd>
@@ -141,10 +141,6 @@ export default function Home() {
               <div className="flex flex-col items-center gap-1 bg-red-500/20 p-2 rounded-lg border border-red-400/30">
                 <kbd className="bg-red-500/30 px-2 py-0.5 rounded text-xs font-mono border border-red-400/50 text-red-200">E</kbd>
                 <span className="text-xs text-red-200">Attaquer</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 bg-yellow-500/20 p-2 rounded-lg border border-yellow-400/30">
-                <kbd className="bg-yellow-500/30 px-2 py-0.5 rounded text-xs font-mono border border-yellow-400/50 text-yellow-200">N</kbd>
-                <span className="text-xs text-yellow-200">Vague +</span>
               </div>
             </div>
           </div>
