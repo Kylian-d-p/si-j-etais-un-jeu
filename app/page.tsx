@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { questions } from "@/lib/questions";
 import { Gamepad2, Loader2, Sparkles, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createGame } from "./create-game";
 
 export default function Home() {
@@ -37,14 +37,14 @@ export default function Home() {
 
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(0);
 
-  useState(() => {
+  useEffect(() => {
     if (loading) {
       const interval = setInterval(() => {
         setCurrentLoadingMessage((prev) => (prev + 1) % loadingMessages.length);
       }, 2000);
       return () => clearInterval(interval);
     }
-  });
+  }, [loading, loadingMessages.length]);
 
   return (
     <main className="min-h-screen bg-linear-to-br from-purple-600 via-pink-500 to-orange-400 relative overflow-hidden">
@@ -83,51 +83,77 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col h-screen justify-center items-center gap-10 max-w-2xl mx-auto p-4 relative z-10">
-          {/* Single clean spinner with icon */}
-          <div className="relative w-40 h-40">
-            <div className="w-40 h-40 border-8 border-white/30 border-t-white rounded-full animate-spin"></div>
-            <Gamepad2 className="w-20 h-20 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-          </div>
-
-          {/* Clean text display */}
-          <div className="text-center space-y-6 w-full">
-            <h2 className="font-bold text-5xl text-white drop-shadow-2xl">Création en cours...</h2>
-            <h3 className="font-bold text-3xl text-white drop-shadow-2xl">Commande du jeu :</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 text-xs md:text-sm">
-                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
-                  <span className="text-xl md:text-2xl">⬅️</span>
-                  <span>Q / ← : Reculer</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
-                  <span className="text-xl md:text-2xl">➡️</span>
-                  <span>D / → : Avancer</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
-                  <span className="text-xl md:text-2xl">⬆️</span>
-                  <span>Z / ↑ : Sauter</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
-                  <span className="text-xl md:text-2xl">⬇️</span>
-                  <span>S / ↓ : Accroupir</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/5 p-2 md:p-3 rounded-lg backdrop-blur-sm">
-                  <span className="text-xl md:text-2xl">⚔️</span>
-                  <span>E : Attaquer</span>
-                </div>
-                
-              </div>
-            {/* Simple dots animation */}
-            <div className="flex justify-center gap-3 pt-4">
-              <div className="w-4 h-4 bg-white rounded-full animate-bounce"></div>
-              <div className="w-4 h-4 bg-white rounded-full animate-bounce delay-100"></div>
-              <div className="w-4 h-4 bg-white rounded-full animate-bounce delay-200"></div>
+        <div className="flex flex-col h-screen justify-center items-center gap-4 max-w-2xl mx-auto px-4 py-6 relative z-10">
+          {/* Spinner avec message dynamique */}
+          <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16">
+              <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <Gamepad2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+            </div>
+            <div className="text-left">
+              <h2 className="font-bold text-2xl md:text-3xl text-white drop-shadow-2xl">Création en cours...</h2>
+              <p className="text-white/80 text-sm md:text-base animate-pulse">{loadingMessages[currentLoadingMessage]}</p>
             </div>
           </div>
 
-          {/* Clean info card */}
-          <div className="mt-4 p-6 bg-white/25 backdrop-blur-lg rounded-2xl border-2 border-white/40 shadow-xl">
-            <p className="text-white text-center text-lg">🎨 Création d&apos;un jeu unique basé sur vos réponses...</p>
+          {/* Règles du jeu */}
+          <div className="bg-white/15 backdrop-blur-lg rounded-xl p-4 border border-white/30 text-left w-full">
+            <h3 className="font-bold text-base text-yellow-300 mb-1 flex items-center gap-2">📜 Règles du jeu</h3>
+            <p className="text-white/90 text-xs leading-relaxed">
+              Affrontez <span className="text-pink-300 font-semibold">3 vagues d&apos;ennemis</span>, puis un{" "}
+              <span className="text-red-400 font-semibold">boss final</span> ! Après la 2ème vague, un{" "}
+              <span className="text-cyan-300 font-semibold">compagnon</span> viendra vous aider. Bonne chance ! 🦸
+            </p>
+          </div>
+
+          {/* Contrôles */}
+          <div className="bg-white/15 backdrop-blur-lg rounded-xl p-4 border border-white/30 w-full">
+            <h3 className="font-bold text-base text-yellow-300 mb-2 flex items-center gap-2">🎮 Contrôles</h3>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-white">
+              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+                <div className="flex gap-1">
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">Q</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">←</kbd>
+                </div>
+                <span className="text-xs">Reculer</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+                <div className="flex gap-1">
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">D</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">→</kbd>
+                </div>
+                <span className="text-xs">Avancer</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+                <div className="flex gap-1">
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">Z</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">⎵</kbd>
+                </div>
+                <span className="text-xs">Sauter</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+                <div className="flex gap-1">
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">S</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">↓</kbd>
+                </div>
+                <span className="text-xs">S&apos;accroupir</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 bg-red-500/20 p-2 rounded-lg border border-red-400/30">
+                <kbd className="bg-red-500/30 px-2 py-0.5 rounded text-xs font-mono border border-red-400/50 text-red-200">E</kbd>
+                <span className="text-xs text-red-200">Attaquer</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 bg-yellow-500/20 p-2 rounded-lg border border-yellow-400/30">
+                <kbd className="bg-yellow-500/30 px-2 py-0.5 rounded text-xs font-mono border border-yellow-400/50 text-yellow-200">N</kbd>
+                <span className="text-xs text-yellow-200">Vague +</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Dots animation */}
+          <div className="flex justify-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-white rounded-full animate-bounce delay-100"></div>
+            <div className="w-2 h-2 bg-white rounded-full animate-bounce delay-200"></div>
           </div>
         </div>
       ) : activeQuestionIndex < 0 ? (
