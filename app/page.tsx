@@ -10,14 +10,18 @@ import { createGame } from "./create-game";
 export default function Home() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
-  const [responses, setResponses] = useState<(string | undefined)[]>(questions.map(() => undefined));
+  const [responses, setResponses] = useState<(string | undefined)[]>(
+    questions.map(() => undefined),
+  );
 
   const nextQuestion = async () => {
     if (activeQuestionIndex < questions.length - 1) {
       setActiveQuestionIndex(activeQuestionIndex + 1);
     } else {
       setLoading(true);
-      const res = await createGame({ responses: responses.map((r) => r || "") });
+      const res = await createGame({
+        responses: responses.map((r) => r || ""),
+      });
       if (res.serverError?.message) {
         alert(res.serverError.message);
         console.log(res.serverError);
@@ -91,55 +95,92 @@ export default function Home() {
               <Gamepad2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
             </div>
             <div className="text-left">
-              <h2 className="font-bold text-2xl md:text-3xl text-white drop-shadow-2xl">Création en cours...</h2>
-              <p className="text-white/80 text-sm md:text-base animate-pulse">{loadingMessages[currentLoadingMessage]}</p>
+              <h2 className="font-bold text-2xl md:text-3xl text-white drop-shadow-2xl">
+                Création en cours...
+              </h2>
+              <p className="text-white/80 text-sm md:text-base animate-pulse">
+                {loadingMessages[currentLoadingMessage]}
+              </p>
             </div>
           </div>
 
           {/* Règles du jeu */}
           <div className="bg-white/15 backdrop-blur-lg rounded-xl p-4 border border-white/30 text-left w-full">
-            <h3 className="font-bold text-base text-yellow-300 mb-1 flex items-center gap-2">📜 Règles du jeu</h3>
-            <p className="text-white/90 text-xs leading-relaxed">
-              Affrontez <span className="text-pink-300 font-semibold">3 vagues d&apos;ennemis</span>, puis un{" "}
-              <span className="text-cyan-400 font-semibold">boss final</span> ! Après la 2ème vague, un{" "}
-              <span className="text-cyan-300 font-semibold">compagnon</span> viendra vous aider. Bonne chance ! 🦸
+            <h3 className="font-bold text-base text text-yellow-300 mb-1 flex items-center gap-2">
+              📜 Règles du jeu
+            </h3>
+            <p className="text-white/90 leading-relaxed">
+              Affrontez{" "}
+              <span className="text-pink-300 font-semibold">
+                3 vagues d&apos;ennemis
+              </span>
+              , puis un{" "}
+              <span className="text-cyan-400 font-semibold">boss final</span> !
+              Après la 2ème vague, un{" "}
+              <span className="text-cyan-300 font-semibold">compagnon</span>{" "}
+              viendra vous aider. Bonne chance ! 🦸
             </p>
           </div>
 
           {/* Contrôles */}
           <div className="bg-white/15 backdrop-blur-lg rounded-xl p-4 border border-white/30 w-full">
-            <h3 className="font-bold text-base text-yellow-300 mb-2 flex items-center gap-2">🎮 Contrôles</h3>
+            <h3 className="font-bold text-base text-yellow-300 mb-2 flex items-center gap-2">
+              🎮 Contrôles
+            </h3>
             <div className="grid grid-cols-3 md:grid-cols-5 gap-2 text-white">
-              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+              <div className="flex flex-col items-center justify-center gap-1 bg-white/10 p-2 rounded-lg">
                 <div className="flex gap-1">
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">Q</kbd>
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">←</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    Q
+                  </kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    ←
+                  </kbd>
                 </div>
                 <span className="text-xs">Reculer</span>
               </div>
-              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+              <div className="flex flex-col items-center justify-center gap-1 bg-white/10 p-2 rounded-lg">
                 <div className="flex gap-1">
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">D</kbd>
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">→</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    D
+                  </kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    →
+                  </kbd>
                 </div>
                 <span className="text-xs">Avancer</span>
               </div>
-              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+              <div className="flex flex-col items-center justify-center gap-1 bg-white/10 p-2 rounded-lg">
                 <div className="flex gap-1">
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">Z</kbd>
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">⎵</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    Z
+                  </kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    ↑
+                  </kbd>
                 </div>
                 <span className="text-xs">Sauter</span>
               </div>
-              <div className="flex flex-col items-center gap-1 bg-white/10 p-2 rounded-lg">
+              <div className="flex flex-col items-center justify-center gap-1 bg-white/10 p-2 rounded-lg">
                 <div className="flex gap-1">
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">S</kbd>
-                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">↓</kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    S
+                  </kbd>
+                  <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs font-mono border border-white/30">
+                    ↓
+                  </kbd>
                 </div>
                 <span className="text-xs">S&apos;accroupir</span>
               </div>
               <div className="flex flex-col items-center gap-1 bg-red-500/20 p-2 rounded-lg border border-red-400/30">
-                <kbd className="bg-red-500/30 px-2 py-0.5 rounded text-xs font-mono border border-red-400/50 text-red-200">E</kbd>
+                <div className="flex gap-1">
+                  <kbd className="bg-red-500/30 px-2 py-0.5 rounded text-xs font-mono border border-red-400/50 text-red-200">
+                    E
+                  </kbd>
+                  <kbd className="bg-red-500/30 px-2 py-0.5 rounded text-xs font-mono border border-red-400/50 text-red-200">
+                    Espace
+                  </kbd>
+                </div>
                 <span className="text-xs text-red-200">Attaquer</span>
               </div>
             </div>
@@ -158,11 +199,15 @@ export default function Home() {
             <div className="inline-block animate-bounce">
               <Gamepad2 className="w-20 h-20 text-white mx-auto drop-shadow-2xl" />
             </div>
-            <h1 className="font-bold text-6xl text-white drop-shadow-2xl animate-slide-up">Bonjour ! 👋</h1>
+            <h1 className="font-bold text-6xl text-white drop-shadow-2xl animate-slide-up">
+              Bonjour ! 👋
+            </h1>
             <p className="text-2xl text-white/90 drop-shadow-lg animate-slide-up delay-100">
               Avant de commencer, on va répondre ensemble à quelques questions !
             </p>
-            <p className="text-lg text-white/80 drop-shadow animate-slide-up delay-200">Préparez-vous à créer VOTRE jeu unique ! ✨</p>
+            <p className="text-lg text-white/80 drop-shadow animate-slide-up delay-200">
+              Préparez-vous à créer VOTRE jeu unique ! ✨
+            </p>
           </div>
           <Button
             onClick={() => setActiveQuestionIndex(0)}
@@ -187,11 +232,15 @@ export default function Home() {
             <div className="h-2 bg-white/30 rounded-full overflow-hidden">
               <div
                 className="h-full bg-linear-to-r from-yellow-400 to-orange-500 transition-all duration-500 ease-out"
-                style={{ width: `${((activeQuestionIndex + 1) / questions.length) * 100}%` }}
+                style={{
+                  width: `${((activeQuestionIndex + 1) / questions.length) * 100}%`,
+                }}
               ></div>
             </div>
 
-            <p className="text-xl text-white/95 drop-shadow">{questions[activeQuestionIndex].label}</p>
+            <p className="text-xl text-white/95 drop-shadow">
+              {questions[activeQuestionIndex].label}
+            </p>
 
             {questions[activeQuestionIndex].responseType === "free" ? (
               <div className="relative">
@@ -247,7 +296,9 @@ export default function Home() {
               {activeQuestionIndex > 0 && (
                 <Button
                   variant="outline"
-                  onClick={() => setActiveQuestionIndex(activeQuestionIndex - 1)}
+                  onClick={() =>
+                    setActiveQuestionIndex(activeQuestionIndex - 1)
+                  }
                   className="bg-white/80 hover:bg-white border-2 border-white/40 text-purple-700 font-semibold py-5 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300"
                 >
                   ← Précédent
