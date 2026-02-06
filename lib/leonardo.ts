@@ -27,12 +27,7 @@ interface LeonardoGenerationResult {
  * @param height Hauteur (défaut: 1024)
  * @param transparent Si vrai, active le détourage (foreground_only)
  */
-export async function generateImage(
-  prompt: string,
-  width: number = 1024,
-  height: number = 1024,
-  transparent: boolean = false
-): Promise<string> {
+export async function generateImage(prompt: string, width: number = 1024, height: number = 1024, transparent: boolean = false): Promise<string> {
   if (!prompt) throw new Error("Le prompt est vide");
 
   // Construction du body de la requête
@@ -41,6 +36,7 @@ export async function generateImage(
     prompt,
     width,
     height,
+    num_images: 1,
     modelId: MODEL_ID,
     elements: [
       {
