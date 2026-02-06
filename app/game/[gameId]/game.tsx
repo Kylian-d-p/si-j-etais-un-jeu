@@ -125,8 +125,8 @@ export default function Game(props: {
     player: {
       x: 100,
       y: 300,
-      width: 90,
-      height: 105,
+      width: 180,
+      height: 210,
       velocityX: 0,
       velocityY: 0,
       // Si le joueur est mêlée, lui donner plus de points de vie
@@ -233,8 +233,8 @@ export default function Game(props: {
           gameStateRef.current.pet = {
             x: gameStateRef.current.player.x - 80,
             y: GROUND_Y - 70,
-            width: 70,
-            height: 70,
+            width: 140,
+            height: 140,
             velocityY: 0,
             isOnGround: true,
             targetX: gameStateRef.current.player.x - 80,
@@ -271,8 +271,8 @@ export default function Game(props: {
       monsters.push({
         x: 400 + i * 150,
         y: 300,
-        width: 84,
-        height: 98,
+        width: 168,
+        height: 196,
         velocityX: 0,
         velocityY: 0,
         health: 30 + waveNumber * 10,
@@ -291,8 +291,8 @@ export default function Game(props: {
     gameStateRef.current.boss = {
       x: 900,
       y: 250,
-      width: 140,
-      height: 175,
+      width: 280,
+      height: 350,
       velocityX: 0,
       velocityY: 0,
       health: 300,
@@ -343,9 +343,9 @@ export default function Game(props: {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    const CANVAS_WIDTH = 1000;
-    const CANVAS_HEIGHT = 600;
-    const GROUND_Y = 480;
+    const CANVAS_WIDTH = 1600;
+    const CANVAS_HEIGHT = 960;
+    const GROUND_Y = 768;
     const GRAVITY = 0.15;
     const CROUCH_FALL_MULTIPLIER = 2.2; // Multiplicateur de gravité quand on s'accroupit en l'air
     const JUMP_FORCE = -11.5;
@@ -1140,8 +1140,8 @@ export default function Game(props: {
           <div className="relative w-full h-full flex items-center justify-center">
             <canvas
               ref={canvasRef}
-              width={1000}
-              height={600}
+              width={1600}
+              height={960}
               className="border-4 border-white/30 rounded-2xl shadow-2xl transition-all duration-300 hover:border-white/50"
               style={{
                 imageRendering: "pixelated",
