@@ -1032,9 +1032,9 @@ export default function Game(props: {
 
         // Barre de vie du monstre
         ctx.fillStyle = "red";
-        ctx.fillRect(monster.x, monster.y - 10, monster.width, 5);
+        ctx.fillRect(monster.x, monster.y - 16, monster.width, 12);
         ctx.fillStyle = "green";
-        ctx.fillRect(monster.x, monster.y - 10, (monster.health / monster.maxHealth) * monster.width, 5);
+        ctx.fillRect(monster.x, monster.y - 16, (monster.health / monster.maxHealth) * monster.width, 12);
       });
 
       // Dessiner le boss
@@ -1053,9 +1053,9 @@ export default function Game(props: {
 
         // Barre de vie du boss
         ctx.fillStyle = "darkred";
-        ctx.fillRect(game.boss.x, game.boss.y - 15, game.boss.width, 8);
+        ctx.fillRect(game.boss.x, game.boss.y - 22, game.boss.width, 16);
         ctx.fillStyle = "red";
-        ctx.fillRect(game.boss.x, game.boss.y - 15, (game.boss.health / game.boss.maxHealth) * game.boss.width, 8);
+        ctx.fillRect(game.boss.x, game.boss.y - 22, (game.boss.health / game.boss.maxHealth) * game.boss.width, 16);
       }
 
       // Dessiner le pet
@@ -1130,13 +1130,13 @@ export default function Game(props: {
 
       // Barre de vie du joueur
       ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      ctx.fillRect(10, 10, 204, 24);
+      ctx.fillRect(10, 10, 204, 34);
       ctx.fillStyle = "darkred";
-      ctx.fillRect(12, 12, 200, 20);
+      ctx.fillRect(12, 12, 200, 30);
       ctx.fillStyle = "red";
-      ctx.fillRect(12, 12, (player.health / player.maxHealth) * 200, 20);
+      ctx.fillRect(12, 12, (player.health / player.maxHealth) * 200, 30);
       ctx.strokeStyle = "white";
-      ctx.strokeRect(12, 12, 200, 20);
+      ctx.strokeRect(12, 12, 200, 30);
 
       // Texte de la vague
       ctx.fillStyle = "white";
