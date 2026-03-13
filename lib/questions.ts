@@ -7,7 +7,7 @@ export const questions: z.infer<typeof types.questions> = [
     responseType: "free",
   },
   {
-    label: "De quoi as tu peur ?",
+    label: "Quelle est ta plus grande peur ?",
     responseType: "free",
   },
   {
