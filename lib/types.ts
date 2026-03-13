@@ -12,7 +12,7 @@ export const types = {
         responseType: z.literal("multipleChoice"),
         choices: z.array(z.string()),
       }),
-    ])
+    ]),
   ),
   prompts: z.object({
     mainCharacter: z.string(),
@@ -30,7 +30,7 @@ export const types = {
     ]),
     monsters: z.string(),
     boss: z.string(),
-    ground: z.string(),
+    ground: z.enum(["crystal", "grass", "lava", "neon", "snow"]),
   }),
 };
 

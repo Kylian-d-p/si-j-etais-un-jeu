@@ -46,7 +46,7 @@ Structure JSON attendue :
 },
 "monsters": string,
 "boss": string,
-"ground": string
+"ground": "crystal" | "grass" | "lava" | "neon" | "snow"
 }
 
 DIRECTIVES DE STYLE (MASTER STYLE) :
@@ -90,7 +90,7 @@ LES ENVIRONNEMENTS (Fond, Sol) :
 
 background : Décris le paysage. Ajoute : ", seamless horizontal scrolling background, digital 2D painting, no characters, highly detailed environment, fills the entire frame, wide angle, flat 2D perspective".
 
-ground : Décris une TEXTURE de sol en coupe (side-view platform). Herbe/Sol en haut, terre en dessous. Ajoute : ", 2D side-scroller floor asset, seamless texture, cross-section view, flat top edge, underground dirt layers filling the image, NO sky, NO horizon, NO characters, fills the whole image frame".
+ground : Utilise la réponse du joueur pour choisir entre "crystal", "grass", "lava", "neon" ou "snow". Décris la texture et l'apparence du sol en fonction de ce choix. Ajoute : ", seamless horizontal scrolling ground texture, digital 2D painting, no characters, highly detailed, fills the entire frame, wide angle, flat 2D perspective".
 
 LOGIQUE DE REMPLISSAGE :
 
@@ -126,7 +126,7 @@ Exemple de réponse (JSON BRUT uniquement) :
     weapon: await generateImage(parsedResponse.data.weapon.prompt, 1024, 1024, true),
     monsters: await generateImage(parsedResponse.data.monsters, 1024, 1024, true),
     boss: await generateImage(parsedResponse.data.boss, 1024, 1024, true),
-    ground: await generateImage(parsedResponse.data.ground, 1024, 512),
+    ground: `/grounds/${parsedResponse.data.ground}.png`,
     pet: await generateImage(parsedResponse.data.pet, 1024, 1024, true),
   };
 
